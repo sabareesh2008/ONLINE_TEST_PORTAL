@@ -87,33 +87,20 @@
     const regNo = regNoInput.value.trim().toUpperCase();
     if (!regNo || regNo.length < 5) return;
 
-    const supabase = getSupabaseClient();
-    if (supabase) {
-      try {
-        const { data: student } = await supabase
-          .from('students')
-          .select('*')
-          .ilike('reg_no', regNo)
-          .maybeSingle();
+    // Check Cloud Supabase or Local Roster
+    let student = null;
+    if (typeof SupabaseAPI !== 'undefined' && SupabaseAPI.isConfigured()) {
+      student = await SupabaseAPI.findStudent(regNo);
+    }
+    if (!student) {
+      student = REGISTERED_STUDENTS.find(s => s.reg_no.toUpperCase() === regNo);
+    }
 
-        if (student) {
-          studentNameInput.value = student.name;
-          departmentInput.value = student.department;
-          sectionInput.value = student.section;
-          hideAlert();
-        }
-      } catch (err) {
-        console.warn('[Supabase] Lookup warning:', err);
-      }
-    } else {
-      // Local fallback lookup from official CSV roster
-      const local = REGISTERED_STUDENTS.find(s => s.reg_no.toUpperCase() === regNo);
-      if (local) {
-        studentNameInput.value = local.name;
-        departmentInput.value = local.department;
-        sectionInput.value = local.section;
-        hideAlert();
-      }
+    if (student) {
+      studentNameInput.value = student.name;
+      departmentInput.value = student.department;
+      sectionInput.value = student.section;
+      hideAlert();
     }
   }
 
@@ -140,12 +127,12 @@
     hideAlert();
 
     const regNo = regNoInput.value.trim().toUpperCase();
-    const name = studentNameInput.value.trim();
-    const department = departmentInput.value.trim();
-    const section = sectionInput.value.trim();
+    let name = studentNameInput.value.trim();
+    let department = departmentInput.value.trim();
+    let section = sectionInput.value.trim();
 
-    if (!regNo || !name || !department || !section) {
-      showAlert('Please fill in all mandatory fields.');
+    if (!regNo) {
+      showAlert('Please enter your Register Number.');
       return;
     }
 
@@ -154,88 +141,53 @@
     btnEnter.disabled = true;
     btnEnter.innerHTML = `<span>Verifying Register Number...</span>`;
 
-    const supabase = getSupabaseClient();
+    try {
+      // 1. Verify student exists in Supabase Cloud OR local official CSV roster
+      let matchedStudent = null;
 
-    if (supabase) {
-      try {
-        // 1. Verify Register Number exists in Supabase "students" table
-        const { data: dbStudent, error: findError } = await supabase
-          .from('students')
-          .select('*')
-          .ilike('reg_no', regNo)
-          .maybeSingle();
-
-        if (findError) {
-          console.error('[Supabase Error]:', findError);
-          showAlert(`Database connection error: ${findError.message}. Check your Supabase configuration.`);
-          btnEnter.disabled = false;
-          btnEnter.innerHTML = originalBtnText;
-          return;
-        }
-
-        if (!dbStudent) {
-          showAlert(`Access Denied: Register Number "${regNo}" was not found in the official roster. Only registered students can access the test.`);
-          btnEnter.disabled = false;
-          btnEnter.innerHTML = originalBtnText;
-          return;
-        }
-
-        // 2. Check if this student has already submitted in Supabase
-        const { data: existingSub, error: subError } = await supabase
-          .from('submissions')
-          .select('submitted_at, obtained_marks, total_marks')
-          .ilike('reg_no', regNo)
-          .maybeSingle();
-
-        if (existingSub) {
-          const submitTime = new Date(existingSub.submitted_at).toLocaleString();
-          showAlert(`Duplicate Attempt Locked: Register Number ${regNo} has already submitted this examination on ${submitTime}. Score: ${existingSub.obtained_marks}/${existingSub.total_marks}.`);
-          btnEnter.disabled = false;
-          btnEnter.innerHTML = originalBtnText;
-          return;
-        }
-
-        // Student verified successfully
-        state.student = {
-          reg_no: dbStudent.reg_no,
-          name: name || dbStudent.name,
-          department: department || dbStudent.department,
-          section: section || dbStudent.section,
-          loginTime: new Date()
-        };
-
-        btnEnter.disabled = false;
-        btnEnter.innerHTML = originalBtnText;
-        startAssessment();
-        return;
-      } catch (err) {
-        console.error('[Supabase verification exception]:', err);
-        showAlert(`Unable to reach database: ${err.message}. Please check your network.`);
-        btnEnter.disabled = false;
-        btnEnter.innerHTML = originalBtnText;
-        return;
+      if (typeof SupabaseAPI !== 'undefined' && SupabaseAPI.isConfigured()) {
+        matchedStudent = await SupabaseAPI.findStudent(regNo);
       }
-    } else {
-      // Offline / Local list fallback check
-      const localMatch = REGISTERED_STUDENTS.find(s => s.reg_no.toUpperCase() === regNo);
-      if (!localMatch) {
-        showAlert(`Register Number "${regNo}" is not registered. (Note: To connect real cloud database, enter your credentials in supabase-config.js)`);
+
+      if (!matchedStudent) {
+        matchedStudent = REGISTERED_STUDENTS.find(s => s.reg_no.toUpperCase() === regNo);
+      }
+
+      if (!matchedStudent) {
+        showAlert(`Access Denied: Register Number "${regNo}" was not found in the official roster. Only registered students can access the test.`);
         btnEnter.disabled = false;
         btnEnter.innerHTML = originalBtnText;
         return;
       }
 
-      const existingSubmissions = JSON.parse(localStorage.getItem('portal_submissions') || '[]');
-      const alreadySubmitted = existingSubmissions.find(s => s.reg_no.toUpperCase() === regNo);
+      // 2. Check if student has already submitted in Supabase or LocalStorage
+      if (typeof SupabaseAPI !== 'undefined' && SupabaseAPI.isConfigured()) {
+        const existingCloudSub = await SupabaseAPI.checkExistingSubmission(regNo);
+        if (existingCloudSub) {
+          const submitTime = new Date(existingCloudSub.submitted_at).toLocaleString();
+          showAlert(`Duplicate Attempt Locked: Register Number ${regNo} has already submitted this examination on ${submitTime}. Score: ${existingCloudSub.obtained_marks}/${existingCloudSub.total_marks}.`);
+          btnEnter.disabled = false;
+          btnEnter.innerHTML = originalBtnText;
+          return;
+        }
+      }
+
+      const existingLocalSubs = JSON.parse(localStorage.getItem('portal_submissions') || '[]');
+      const alreadySubmitted = existingLocalSubs.find(s => s.reg_no.toUpperCase() === regNo);
       if (alreadySubmitted) {
-        showAlert(`Register Number ${regNo} has already completed this assessment. Duplicate attempts are locked.`);
+        showAlert(`Duplicate Attempt Locked: Register Number ${regNo} has already completed this assessment. Re-taking is not permitted.`);
         btnEnter.disabled = false;
         btnEnter.innerHTML = originalBtnText;
         return;
       }
+
+      // 3. Populate missing fields from roster if needed
+      name = name || matchedStudent.name;
+      department = department || matchedStudent.department;
+      section = section || matchedStudent.section;
 
       state.student = {
-        reg_no: regNo,
+        reg_no: matchedStudent.reg_no,
         name: name,
         department: department,
         section: section,
@@ -244,7 +196,14 @@
 
       btnEnter.disabled = false;
       btnEnter.innerHTML = originalBtnText;
+
+      // 4. Open Test Dashboard
       startAssessment();
+    } catch (err) {
+      console.error('[Login Verification Error]:', err);
+      showAlert(`Verification error: ${err.message}. Please try again.`);
+      btnEnter.disabled = false;
+      btnEnter.innerHTML = originalBtnText;
     }
   });
 
@@ -253,25 +212,30 @@
   // ========================================================
 
   function startAssessment() {
-    // Switch views
-    loginView.classList.add('hidden');
-    dashboardView.classList.remove('hidden');
+    try {
+      // Switch views
+      loginView.classList.add('hidden');
+      dashboardView.classList.remove('hidden');
 
-    // Populate candidate details
-    dispName.textContent = state.student.name;
-    dispRegno.textContent = state.student.reg_no;
-    dispDeptSec.textContent = `${state.student.section} • ${state.student.department}`;
-    dispAvatar.textContent = state.student.name.charAt(0).toUpperCase();
+      // Populate candidate details safely
+      dispName.textContent = state.student.name || 'Candidate';
+      dispRegno.textContent = state.student.reg_no || '';
+      dispDeptSec.textContent = `${state.student.section || 'Sec'} • ${state.student.department || 'ECE'}`;
+      dispAvatar.textContent = (state.student.name && state.student.name.length > 0) ? state.student.name.charAt(0).toUpperCase() : 'S';
 
-    // Build the 1-50 Question Palette Grid
-    buildPaletteGrid();
+      // Build the 1-50 Question Palette Grid
+      buildPaletteGrid();
 
-    // Render Question 1
-    state.currentIndex = 0;
-    renderQuestion(state.currentIndex);
+      // Render Question 1
+      state.currentIndex = 0;
+      renderQuestion(state.currentIndex);
 
-    // Start 45-minute countdown timer
-    startCountdownTimer();
+      // Start 45-minute countdown timer
+      startCountdownTimer();
+    } catch (err) {
+      console.error('[startAssessment Error]:', err);
+      alert('Error opening test portal: ' + err.message);
+    }
   }
 
   function startCountdownTimer() {
@@ -566,6 +530,8 @@
       incorrectCount: incorrectList.length,
       incorrectList: incorrectList,
       fullReview: fullReview
+    };
+
     // Save to local storage for offline backup & review
     const existing = JSON.parse(localStorage.getItem('portal_submissions') || '[]');
     existing.push(submissionRecord);
@@ -573,62 +539,10 @@
     localStorage.setItem('last_submission', JSON.stringify(submissionRecord));
 
     // Save to Supabase Cloud Database if configured
-    const supabase = getSupabaseClient();
-    if (supabase) {
-      (async () => {
-        try {
-          // 1. Insert into submissions
-          const { data: insertedSub, error: subErr } = await supabase
-            .from('submissions')
-            .insert([{
-              reg_no: state.student.reg_no,
-              student_name: state.student.name,
-              department: state.student.department,
-              section: state.student.section,
-              total_marks: state.totalQuestions,
-              obtained_marks: score,
-              percentage: parseFloat(percentage),
-              time_taken_seconds: timeTakenSeconds
-            }])
-            .select()
-            .single();
-
-          if (subErr) {
-            console.error('[Supabase Submissions Insert Error]:', subErr);
-          } else {
-            console.log('[Supabase] Submission recorded with ID:', insertedSub.id);
-
-            // 2. Insert into submission_incorrect_answers
-            if (incorrectList.length > 0) {
-              const incorrectRows = incorrectList.map(item => ({
-                submission_id: insertedSub.id,
-                reg_no: state.student.reg_no,
-                student_name: state.student.name,
-                department: state.student.department,
-                section: state.student.section,
-                qno: item.qno,
-                category: item.category,
-                question_text: item.question,
-                selected_option: item.selected,
-                correct_option: item.correct,
-                explanation: item.explanation
-              }));
-
-              const { error: incErr } = await supabase
-                .from('submission_incorrect_answers')
-                .insert(incorrectRows);
-
-              if (incErr) {
-                console.error('[Supabase Incorrect Answers Insert Error]:', incErr);
-              } else {
-                console.log(`[Supabase] Recorded ${incorrectRows.length} incorrect answers for weakness analysis.`);
-              }
-            }
-          }
-        } catch (dbErr) {
-          console.error('[Supabase Save Exception]:', dbErr);
-        }
-      })();
+    if (typeof SupabaseAPI !== 'undefined' && SupabaseAPI.isConfigured()) {
+      SupabaseAPI.saveSubmission(submissionRecord, incorrectList)
+        .then(id => console.log('[Supabase] Submission synced with cloud ID:', id))
+        .catch(err => console.warn('[Supabase Sync Warning]:', err));
     }
 
     // Display temporary success banner before result page is expanded
