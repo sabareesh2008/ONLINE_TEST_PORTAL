@@ -467,9 +467,15 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
         const targetContent = document.getElementById(targetId);
         if (targetContent) targetContent.classList.remove('hidden');
 
-        if (targetId === 'admin-tab-questions') renderQuestionsPreview();
-        if (targetId === 'admin-tab-directory') renderStudentDirectory();
-        if (targetId === 'admin-tab-analytics') renderAnalytics();
+        if (targetId === 'admin-tab-test-manager' || targetId === 'admin-tab-questions' || targetId === 'admin-tab-publish') {
+          renderQuestionsPreview();
+        }
+        if (targetId === 'admin-tab-students' || targetId === 'admin-tab-directory' || targetId === 'admin-tab-add-student') {
+          renderStudentDirectory();
+        }
+        if (targetId === 'admin-tab-analytics') {
+          renderAnalytics();
+        }
       });
     });
 
@@ -481,25 +487,32 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
 
         if (state.isTestPublished) {
           if (state.questions.length === 0) {
-            alert('Assessment published! However, 0 questions are currently loaded. Please upload questions in the Question Manager tab.');
+            alert('Assessment published! However, 0 questions are currently loaded. Add or upload questions below to allow students to take the test.');
           } else {
-            alert(`Assessment is now LIVE and PUBLISHED with ${state.questions.length} questions! Students can now take the test.`);
+            alert(`Assessment is now LIVE and PUBLISHED with ${state.questions.length} questions! Candidates can now log in and take the exam.`);
           }
         } else {
-          alert('Assessment has been UNPUBLISHED! Students will see "There is no test right now".');
+          alert('Assessment has been UNPUBLISHED! Students will see "There is no test right now" upon login.');
         }
       });
     }
 
     if (btnSaveTestSettings) {
       btnSaveTestSettings.addEventListener('click', () => {
-        const title = adminTestTitleInput.value.trim() || 'Technical Assessment 2026';
-        const duration = parseInt(adminTestDurationInput.value || '45', 10);
-        state.testTitle = title;
-        state.testDuration = duration;
-        localStorage.setItem('portal_test_title', title);
-        localStorage.setItem('portal_test_duration', duration.toString());
-        alert('Test configuration updated successfully!');
+        const title = adminTestTitleInput ? adminTestTitleInput.value.trim() : 'Technical Assessment 2026';
+        const duration = parseInt(adminTestDurationInput ? adminTestDurationInput.value : '45', 10);
+        state.testTitle = title || 'Technical Assessment 2026';
+        state.testDuration = isNaN(duration) || duration <= 0 ? 45 : duration;
+        localStorage.setItem('portal_test_title', state.testTitle);
+        localStorage.setItem('portal_test_duration', state.testDuration.toString());
+
+        const feedback = document.getElementById('save-settings-feedback');
+        if (feedback) {
+          feedback.style.display = 'inline';
+          setTimeout(() => { feedback.style.display = 'none'; }, 3000);
+        } else {
+          alert('Test configuration updated successfully!');
+        }
       });
     }
 
@@ -574,27 +587,158 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
       });
     }
 
-    // 2. Clear All Questions
+    // 2. Clear / Delete All Questions Handlers (Top and Bottom buttons)
+    const purgeAllQuestions = () => {
+      if (!state.questions || state.questions.length === 0) {
+        alert('Question bank is already empty. No questions to delete.');
+        return;
+      }
+      const count = state.questions.length;
+      if (confirm(`⚠️ DELETE ALL QUESTIONS?\n\nAre you sure you want to permanently delete all ${count} questions from this assessment?\n\nThis cannot be undone.`)) {
+        state.questions = [];
+        localStorage.removeItem('portal_assigned_questions');
+        window.QUESTIONS_BANK = [];
+        renderQuestionsPreview();
+        updateStatusBadge();
+        showCustomAlert(questionUploadAlert, `All ${count} questions have been deleted successfully.`);
+        questionUploadAlert.className = 'alert alert-info';
+        questionUploadAlert.style.display = 'block';
+      }
+    };
+
     if (btnClearQuestions) {
-      btnClearQuestions.addEventListener('click', () => {
-        if (state.questions.length === 0) {
-          alert('Question bank is already empty.');
-          return;
-        }
-        if (confirm(`Are you sure you want to clear all ${state.questions.length} questions from the test portal?`)) {
-          state.questions = [];
-          localStorage.removeItem('portal_assigned_questions');
-          window.QUESTIONS_BANK = [];
-          renderQuestionsPreview();
-          updateStatusBadge();
-          showCustomAlert(questionUploadAlert, 'All questions have been cleared.');
-          questionUploadAlert.className = 'alert alert-info';
-          questionUploadAlert.style.display = 'block';
+      btnClearQuestions.addEventListener('click', purgeAllQuestions);
+    }
+    const btnClearQuestionsBottom = document.getElementById('btn-clear-questions-bottom');
+    if (btnClearQuestionsBottom) {
+      btnClearQuestionsBottom.addEventListener('click', purgeAllQuestions);
+    }
+
+    // 3. Manual Single Question Add Panel Handlers
+    const btnToggleManualAdd = document.getElementById('btn-toggle-manual-add');
+    const btnCloseManualAdd = document.getElementById('btn-close-manual-add');
+    const btnCancelManualQ = document.getElementById('btn-cancel-manual-q');
+    const manualAddPanel = document.getElementById('manual-add-panel');
+    const manualQType = document.getElementById('manual-q-type');
+    const manualMcqFields = document.getElementById('manual-mcq-fields');
+    const manualCorrectLabel = document.getElementById('manual-correct-label');
+    const btnSaveManualQ = document.getElementById('btn-save-manual-q');
+
+    const toggleManualAdd = (show) => {
+      if (!manualAddPanel) return;
+      if (typeof show === 'boolean') {
+        manualAddPanel.classList.toggle('hidden', !show);
+      } else {
+        manualAddPanel.classList.toggle('hidden');
+      }
+    };
+
+    if (btnToggleManualAdd) btnToggleManualAdd.addEventListener('click', () => toggleManualAdd());
+    if (btnCloseManualAdd) btnCloseManualAdd.addEventListener('click', () => toggleManualAdd(false));
+    if (btnCancelManualQ) btnCancelManualQ.addEventListener('click', () => toggleManualAdd(false));
+
+    if (manualQType) {
+      manualQType.addEventListener('change', () => {
+        const isMcq = manualQType.value === 'MCQ';
+        if (manualMcqFields) manualMcqFields.style.display = isMcq ? 'block' : 'none';
+        if (manualCorrectLabel) {
+          manualCorrectLabel.textContent = isMcq
+            ? 'Correct Answer (A, B, C, or D) *'
+            : 'Correct Answer (Exact word or phrase) *';
         }
       });
     }
 
-    // 3. Dropzone & File Browse
+    if (btnSaveManualQ) {
+      btnSaveManualQ.addEventListener('click', () => {
+        const qType = (manualQType ? manualQType.value : 'MCQ').toUpperCase();
+        const category = (document.getElementById('manual-q-category')?.value || 'General').trim();
+        const prompt = (document.getElementById('manual-q-text')?.value || '').trim();
+        const correct = (document.getElementById('manual-q-correct')?.value || '').trim();
+        const explanation = (document.getElementById('manual-q-explanation')?.value || '').trim();
+
+        if (!prompt) {
+          alert('Please enter a question prompt.');
+          return;
+        }
+        if (!correct) {
+          alert('Please specify the correct answer.');
+          return;
+        }
+
+        let newQ = null;
+        if (qType === 'MCQ') {
+          const optA = (document.getElementById('manual-opt-a')?.value || '').trim();
+          const optB = (document.getElementById('manual-opt-b')?.value || '').trim();
+          const optC = (document.getElementById('manual-opt-c')?.value || '').trim();
+          const optD = (document.getElementById('manual-opt-d')?.value || '').trim();
+
+          if (!optA || !optB) {
+            alert('Please provide at least Option A and Option B for MCQ.');
+            return;
+          }
+
+          let cleanCorrect = correct.toUpperCase();
+          if (!['A', 'B', 'C', 'D'].includes(cleanCorrect)) {
+            if (cleanCorrect === optA.toUpperCase()) cleanCorrect = 'A';
+            else if (cleanCorrect === optB.toUpperCase()) cleanCorrect = 'B';
+            else if (cleanCorrect === optC.toUpperCase()) cleanCorrect = 'C';
+            else if (cleanCorrect === optD.toUpperCase()) cleanCorrect = 'D';
+            else cleanCorrect = 'A';
+          }
+
+          newQ = {
+            id: state.questions.length + 1,
+            type: 'MCQ',
+            category: category || 'General',
+            question: prompt,
+            options: {
+              A: optA || 'Option A',
+              B: optB || 'Option B',
+              C: optC || 'Option C',
+              D: optD || 'Option D'
+            },
+            correctAnswer: cleanCorrect,
+            explanation: explanation
+          };
+        } else {
+          newQ = {
+            id: state.questions.length + 1,
+            type: 'FIB',
+            category: category || 'General',
+            question: prompt,
+            options: null,
+            correctAnswer: correct,
+            explanation: explanation
+          };
+        }
+
+        state.questions.push(newQ);
+        localStorage.setItem('portal_assigned_questions', JSON.stringify(state.questions));
+        window.QUESTIONS_BANK = state.questions;
+        renderQuestionsPreview();
+        updateStatusBadge();
+
+        // Clear manual inputs
+        const qTextInput = document.getElementById('manual-q-text');
+        const qCorrectInput = document.getElementById('manual-q-correct');
+        const qExpInput = document.getElementById('manual-q-explanation');
+        if (qTextInput) qTextInput.value = '';
+        if (qCorrectInput) qCorrectInput.value = '';
+        if (qExpInput) qExpInput.value = '';
+        ['manual-opt-a', 'manual-opt-b', 'manual-opt-c', 'manual-opt-d'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.value = '';
+        });
+
+        toggleManualAdd(false);
+        showCustomAlert(questionUploadAlert, `Question #${state.questions.length} added successfully!`);
+        questionUploadAlert.className = 'alert alert-success';
+        questionUploadAlert.style.display = 'block';
+      });
+    }
+
+    // 4. Dropzone & File Browse
     if (btnBrowseFile && questionFileInput) {
       btnBrowseFile.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -824,8 +968,8 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
           <td style="font-weight: 500; max-width: 320px;">${escapeHtml(q.question)}</td>
           <td>${optionsDisplay}</td>
           <td><strong style="color: #10b981; font-family: monospace;">${escapeHtml(q.correctAnswer)}</strong></td>
-          <td>
-            <button type="button" class="btn-delete-q" data-idx="${idx}" style="background: none; border: none; color: #ef4444; cursor: pointer; padding: 4px;" title="Delete Question">
+          <td style="text-align: center;">
+            <button type="button" class="btn-delete-q" data-idx="${idx}" style="background: rgba(239, 68, 68, 0.14); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 4px; color: #fca5a5; cursor: pointer; padding: 4px 8px; font-size: 0.84rem; transition: all 0.2s;" title="Delete this question">
               🗑️
             </button>
           </td>
@@ -834,14 +978,19 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
     }).join('');
 
     document.querySelectorAll('.btn-delete-q').forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
         const idx = parseInt(btn.getAttribute('data-idx'), 10);
         if (!isNaN(idx) && idx >= 0 && idx < state.questions.length) {
-          state.questions.splice(idx, 1);
-          localStorage.setItem('portal_assigned_questions', JSON.stringify(state.questions));
-          window.QUESTIONS_BANK = state.questions;
-          renderQuestionsPreview();
-          updateStatusBadge();
+          const qText = state.questions[idx].question;
+          const snippet = qText.length > 45 ? qText.substring(0, 45) + '...' : qText;
+          if (confirm(`Delete Question #${idx + 1}?\n"${snippet}"`)) {
+            state.questions.splice(idx, 1);
+            localStorage.setItem('portal_assigned_questions', JSON.stringify(state.questions));
+            window.QUESTIONS_BANK = state.questions;
+            renderQuestionsPreview();
+            updateStatusBadge();
+          }
         }
       });
     });

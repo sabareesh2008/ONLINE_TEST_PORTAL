@@ -1425,4 +1425,38 @@ body {
   line-height: 1.5 !important;
 }
 
+/* ========================================================
+   ADMIN UNIFIED TEST SETUP & QUESTION MANAGEMENT
+   ======================================================== */
+.btn-danger-all {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  background: rgba(239, 68, 68, 0.14) !important;
+  border: 1.5px solid #ef4444 !important;
+  color: #fca5a5 !important;
+  padding: 8px 16px !important;
+  border-radius: 6px !important;
+  font-size: 0.86rem !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+}
+
+.btn-danger-all:hover {
+  background: #ef4444 !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 14px rgba(239, 68, 68, 0.45) !important;
+}
+
+.manual-add-box {
+  background: #0b1120 !important;
+  border: 1.5px solid #334155 !important;
+  border-radius: 8px !important;
+  padding: 20px !important;
+  margin-bottom: 22px !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3) !important;
+}
+
+
 
