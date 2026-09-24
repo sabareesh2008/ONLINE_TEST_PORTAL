@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Technical Assessment Portal 2026</title>
-  <link rel="stylesheet" href="style.css?v=3.0">
+  <link rel="stylesheet" href="style.css?v=4.0">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -12,84 +12,292 @@
 <body>
 
   <!-- ==========================================
-       SECTION 1: STUDENT LOGIN PAGE
+       GLOBAL PORTAL HEADER
        ========================================== -->
-  <div id="login-view">
-    <!-- Header -->
-    <header class="portal-header">
-      <div class="brand-section">
-        <div class="brand-logo">T</div>
-        <div class="brand-title">
-          <h1>TECHNICAL ASSESSMENT PORTAL</h1>
-          <p>Online Examination & Evaluation System</p>
-        </div>
+  <header class="portal-header">
+    <div class="brand-section">
+      <div class="brand-logo">T</div>
+      <div class="brand-title">
+        <h1>TECHNICAL ASSESSMENT PORTAL</h1>
+        <p>Department of Electronics & Communication Engineering</p>
       </div>
-      <div id="portal-status-badge" style="font-size: 0.8rem; background: #1e293b; padding: 6px 14px; border-radius: 20px; border: 1px solid #334155; color: #f59e0b; font-weight: 600;">
+    </div>
+
+    <!-- Header Navigation & Status -->
+    <div class="header-controls">
+      <!-- Role Switcher -->
+      <nav class="role-switcher" id="portal-role-nav">
+        <button type="button" class="role-btn active" id="btn-nav-student">
+          <span>🎓 Student Portal</span>
+        </button>
+        <button type="button" class="role-btn" id="btn-nav-admin">
+          <span>🛡️ Admin / Faculty</span>
+        </button>
+      </nav>
+
+      <!-- Assessment Status Badge -->
+      <div id="portal-status-badge" class="status-badge inactive">
         ● No Active Assessment
       </div>
-    </header>
+    </div>
+  </header>
 
-    <!-- Main Login Body -->
-    <main class="login-container">
-      <!-- Left: Login Form Card -->
-      <section class="login-card">
+  <!-- ==========================================
+       VIEW 1: STUDENT LOGIN PAGE
+       ========================================== -->
+  <main id="student-login-view" class="auth-wrapper">
+    <section class="auth-card">
+      <div class="auth-card-header">
+        <div class="auth-card-icon">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 10v6M2 10l10-5 10 5-10 5z"></path>
+            <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
+          </svg>
+        </div>
         <h2>Student Authentication</h2>
-        <p class="subtitle">Please provide your official credentials to access the examination portal.</p>
+        <p class="subtitle">Enter your official Register Number to verify your eligibility for the assessment.</p>
+      </div>
 
-        <!-- Alert Notification -->
-        <div id="login-alert" class="alert alert-danger"></div>
+      <!-- Alert Notification -->
+      <div id="student-login-alert" class="alert alert-danger"></div>
 
-        <form id="student-login-form" autocomplete="off">
-          <!-- Register Number -->
+      <form id="student-login-form" autocomplete="off">
+        <!-- Register Number -->
+        <div class="form-group">
+          <label for="reg-no">Register Number *</label>
+          <input 
+            type="text" 
+            id="reg-no" 
+            class="form-control" 
+            placeholder="e.g. 922525106001" 
+            required
+            autofocus
+          >
+        </div>
+
+        <!-- Quick Test Helper -->
+        <div class="quick-fill-box">
+          <span>💡 <strong>Quick Test:</strong> Click to fill sample student</span>
+          <button type="button" class="quick-fill-btn" id="btn-quick-fill">Auto Fill</button>
+        </div>
+
+        <!-- Student Name -->
+        <div class="form-group" style="margin-top: 18px;">
+          <label for="student-name">Full Student Name *</label>
+          <input 
+            type="text" 
+            id="student-name" 
+            class="form-control" 
+            placeholder="e.g. AASHIFA SAHANAJ M" 
+            required
+          >
+        </div>
+
+        <!-- Department and Section -->
+        <div class="form-row">
           <div class="form-group">
-            <label for="reg-no">Register Number *</label>
-            <input 
-              type="text" 
-              id="reg-no" 
-              class="form-control" 
-              placeholder="e.g. 717822P101" 
-              required
-              autofocus
-            >
+            <label for="department">Department *</label>
+            <select id="department" class="form-control" required>
+              <option value="ECE" selected>ECE (Electronics & Communication)</option>
+              <option value="CSE">CSE (Computer Science)</option>
+              <option value="IT">IT (Information Technology)</option>
+              <option value="AIDS">AIDS (AI & Data Science)</option>
+              <option value="MECH">Mechanical Engineering</option>
+              <option value="EEE">Electrical & Electronics</option>
+            </select>
           </div>
 
-          <!-- Quick Fill Helper for Easy Testing -->
-          <div class="quick-fill-box">
-            <span>💡 <strong>Quick Test:</strong> Click to auto-fill sample student</span>
-            <button type="button" class="quick-fill-btn" id="btn-quick-fill">Auto Fill</button>
+          <div class="form-group">
+            <label for="section">Section *</label>
+            <select id="section" class="form-control" required>
+              <option value="">Select Section</option>
+              <option value="A">Section A</option>
+              <option value="B">Section B</option>
+              <option value="C">Section C</option>
+              <option value="D">Section D</option>
+              <option value="E">Section E</option>
+              <option value="F">Section F</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <button type="submit" class="btn-primary" id="btn-enter-test">
+          <span>Proceed to Examination</span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+            <polyline points="12 5 19 12 12 19"></polyline>
+          </svg>
+        </button>
+      </form>
+    </section>
+  </main>
+
+  <!-- ==========================================
+       VIEW 2: ADMIN LOGIN PAGE
+       ========================================== -->
+  <main id="admin-login-view" class="auth-wrapper hidden">
+    <section class="auth-card">
+      <div class="auth-card-header">
+        <div class="auth-card-icon" style="background: rgba(168, 85, 247, 0.1); border-color: rgba(168, 85, 247, 0.3); color: #c084fc;">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+        </div>
+        <h2>Faculty & Admin Access</h2>
+        <p class="subtitle">Authenticate with administrator credentials to manage students and publish assessments.</p>
+      </div>
+
+      <div id="admin-login-alert" class="alert alert-danger"></div>
+
+      <form id="admin-login-form" autocomplete="off">
+        <div class="form-group">
+          <label for="admin-username">Admin Username</label>
+          <input type="text" id="admin-username" class="form-control" placeholder="admin" required>
+        </div>
+
+        <div class="form-group">
+          <label for="admin-password">Password</label>
+          <input type="password" id="admin-password" class="form-control" placeholder="••••••••" required>
+        </div>
+
+        <button type="submit" class="btn-primary" style="background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);">
+          <span>Login to Admin Command Center</span>
+        </button>
+
+        <div style="margin-top: 18px; text-align: center; font-size: 0.8rem; color: #94a3b8;">
+          Default Admin: <strong style="color: #cbd5e1;">admin</strong> | Password: <strong style="color: #cbd5e1;">admin123</strong>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <!-- ==========================================
+       VIEW 3: ADMIN DASHBOARD (AFTER LOGIN)
+       ========================================== -->
+  <div id="admin-dashboard-view" class="admin-container hidden">
+    <!-- Top Bar -->
+    <div class="admin-header-bar">
+      <div>
+        <h2>Faculty Command Dashboard</h2>
+        <p>Live candidate roster management, examination publishing & analytics</p>
+      </div>
+      <button type="button" class="btn-secondary" id="btn-admin-logout">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+          <polyline points="16 17 21 12 16 7"></polyline>
+          <line x1="21" y1="12" x2="9" y2="12"></line>
+        </svg>
+        <span>Exit Admin</span>
+      </button>
+    </div>
+
+    <!-- Quick Metrics -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-title">Registered Students</div>
+        <div class="stat-value" id="metric-total-students">372</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-title">Assessment Status</div>
+        <div class="stat-value" id="metric-test-status" style="color: #f59e0b; font-size: 1.35rem;">Unpublished</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-title">Completed Submissions</div>
+        <div class="stat-value" id="metric-submissions-count" style="color: #10b981;">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-title">Sections Enrolled</div>
+        <div class="stat-value">6 (A-F)</div>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="admin-tabs">
+      <button type="button" class="admin-tab active" data-target="admin-tab-publish">
+        📢 Publish & Control Test
+      </button>
+      <button type="button" class="admin-tab" data-target="admin-tab-add-student">
+        ➕ Add New Student
+      </button>
+      <button type="button" class="admin-tab" data-target="admin-tab-directory">
+        📋 Student Roster Directory
+      </button>
+      <button type="button" class="admin-tab" data-target="admin-tab-analytics">
+        📊 Section Tracker & Results
+      </button>
+    </div>
+
+    <!-- TAB 1: PUBLISH & CONTROL TEST -->
+    <div id="admin-tab-publish" class="admin-tab-content">
+      <div class="admin-panel-card">
+        <h3>Assessment Publishing Controller</h3>
+        <p class="card-desc">Control whether students can access and start the examination right now.</p>
+
+        <!-- Current Status Banner -->
+        <div class="publish-box">
+          <div class="publish-status-info">
+            <h4 id="publish-banner-title">Current State: Unpublished</h4>
+            <p id="publish-banner-desc" style="color: var(--text-muted); font-size: 0.86rem;">
+              Students currently see "There is no test right now" upon login.
+            </p>
+          </div>
+          <button type="button" class="btn-publish" id="btn-toggle-publish">
+            <span>Publish Test to Students</span>
+          </button>
+        </div>
+
+        <!-- Test Configuration Details -->
+        <div class="form-row">
+          <div class="form-group">
+            <label for="admin-test-title">Examination Title</label>
+            <input type="text" id="admin-test-title" class="form-control" value="Technical Assessment 2026">
+          </div>
+          <div class="form-group">
+            <label for="admin-test-duration">Duration (Minutes)</label>
+            <input type="number" id="admin-test-duration" class="form-control" value="45" min="5" max="180">
+          </div>
+        </div>
+
+        <button type="button" class="btn-secondary" id="btn-save-test-settings" style="margin-top: 10px;">
+          <span>Save Settings</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- TAB 2: ADD NEW STUDENT -->
+    <div id="admin-tab-add-student" class="admin-tab-content hidden">
+      <div class="admin-panel-card" style="max-width: 680px;">
+        <h3>Enroll a New Student</h3>
+        <p class="card-desc">Add a candidate's register number to the database roster to authorize them for tests.</p>
+
+        <div id="add-student-alert" class="alert"></div>
+
+        <form id="add-student-form">
+          <div class="form-group">
+            <label for="new-regno">Register Number *</label>
+            <input type="text" id="new-regno" class="form-control" placeholder="e.g. 922525106379" required>
           </div>
 
-          <!-- Student Name -->
-          <div class="form-group" style="margin-top: 18px;">
-            <label for="student-name">Full Student Name *</label>
-            <input 
-              type="text" 
-              id="student-name" 
-              class="form-control" 
-              placeholder="e.g. Aarav Sharma" 
-              required
-            >
+          <div class="form-group">
+            <label for="new-name">Full Student Name *</label>
+            <input type="text" id="new-name" class="form-control" placeholder="e.g. KARTHIK S" required>
           </div>
 
-          <!-- Department and Section (Two Column) -->
           <div class="form-row">
             <div class="form-group">
-              <label for="department">Department *</label>
-              <select id="department" class="form-control" required>
-                <option value="">Select Department</option>
-                <option value="ECE" selected>ECE (Electronics and Communication)</option>
-                <option value="CSE">CSE (Computer Science)</option>
-                <option value="IT">IT (Information Technology)</option>
-                <option value="AIDS">AIDS (AI & Data Science)</option>
-                <option value="MECH">Mechanical Engineering</option>
-                <option value="EEE">Electrical & Electronics</option>
+              <label for="new-dept">Department *</label>
+              <select id="new-dept" class="form-control" required>
+                <option value="ECE" selected>ECE</option>
+                <option value="CSE">CSE</option>
+                <option value="IT">IT</option>
+                <option value="AIDS">AIDS</option>
               </select>
             </div>
-
             <div class="form-group">
-              <label for="section">Section *</label>
-              <select id="section" class="form-control" required>
-                <option value="">Select Section</option>
+              <label for="new-section">Section *</label>
+              <select id="new-section" class="form-control" required>
                 <option value="A">Section A</option>
                 <option value="B">Section B</option>
                 <option value="C">Section C</option>
@@ -100,50 +308,124 @@
             </div>
           </div>
 
-          <!-- Submit Button -->
-          <button type="submit" class="btn-primary" id="btn-enter-test">
-            <span>Proceed to Examination</span>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="5" y1="12" x2="19" y2="12"></line>
-              <polyline points="12 5 19 12 12 19"></polyline>
-            </svg>
+          <button type="submit" class="btn-primary" style="margin-top: 14px;">
+            <span>Add Student to Database</span>
           </button>
         </form>
-      </section>
-    </main>
-  </div>
+      </div>
+    </div>
 
-  <!-- ==========================================
-       SECTION 2: TEST DASHBOARD PORTAL
-       ========================================== -->
-  <div id="dashboard-view" class="hidden">
-    <!-- No Test Available Screen -->
-    <div id="no-test-screen" class="no-test-container">
-      <div class="no-test-card">
-        <div class="no-test-icon">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2">
-            <circle cx="12" cy="12" r="10"></circle>
-            <polyline points="12 6 12 12 16 14"></polyline>
-          </svg>
+    <!-- TAB 3: STUDENT DIRECTORY -->
+    <div id="admin-tab-directory" class="admin-tab-content hidden">
+      <div class="admin-panel-card">
+        <div class="table-toolbar">
+          <div>
+            <h3>Official Student Directory</h3>
+            <p class="card-desc" style="margin-bottom: 0;" id="dir-count-text">Showing 372 registered candidates</p>
+          </div>
+
+          <div style="display: flex; gap: 10px;">
+            <!-- Filter Section -->
+            <select id="filter-dir-section" class="form-control" style="width: auto;">
+              <option value="ALL">All Sections</option>
+              <option value="A">Section A</option>
+              <option value="B">Section B</option>
+              <option value="C">Section C</option>
+              <option value="D">Section D</option>
+              <option value="E">Section E</option>
+              <option value="F">Section F</option>
+            </select>
+
+            <!-- Search -->
+            <input type="text" id="search-dir-student" class="form-control search-input" placeholder="Search by name or reg no...">
+          </div>
         </div>
-        <h2>There is no test right now</h2>
-        <p>The examination is currently not active or questions have not been assigned yet.</p>
-        <div id="candidate-info-box" style="margin: 20px 0; padding: 12px; background: #0f172a; border-radius: 8px; font-size: 0.88rem; border: 1px solid #334155;">
-          <div><strong id="no-test-name">Student Name</strong> (<span id="no-test-regno">Register Number</span>)</div>
-          <div style="color: #94a3b8; font-size: 0.8rem; margin-top: 4px;" id="no-test-dept-sec">ECE • Section A</div>
+
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Register Number</th>
+                <th>Student Name</th>
+                <th>Department</th>
+                <th>Section</th>
+              </tr>
+            </thead>
+            <tbody id="student-roster-tbody">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
         </div>
-        <p class="no-test-subtext">Please check back later or contact your department coordinator / advisor.</p>
-        <button type="button" class="btn-primary" id="btn-back-to-login" style="max-width: 220px; margin: 24px auto 0;">
-          <span>Return to Login</span>
-        </button>
+      </div>
+    </div>
+
+    <!-- TAB 4: SECTION ANALYTICS & SUBMISSIONS -->
+    <div id="admin-tab-analytics" class="admin-tab-content hidden">
+      <div class="admin-panel-card">
+        <h3>Section-wise Completion & Submissions</h3>
+        <p class="card-desc">Track real-time candidate completion rates across sections A through F.</p>
+
+        <!-- Section Progress Grid -->
+        <div class="stats-grid" id="section-progress-cards" style="margin-bottom: 30px;">
+          <!-- Dynamically populated -->
+        </div>
+
+        <h4 style="margin-bottom: 14px; font-size: 1rem;">Recent Submissions Log</h4>
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Register No</th>
+                <th>Student Name</th>
+                <th>Department</th>
+                <th>Section</th>
+                <th>Marks</th>
+                <th>Percentage</th>
+                <th>Submitted At</th>
+              </tr>
+            </thead>
+            <tbody id="submissions-tbody">
+              <tr>
+                <td colspan="7" style="text-align: center; color: #64748b; padding: 24px;">No student submissions recorded yet.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
 
+  <!-- ==========================================
+       VIEW 4: NO TEST NOTICE SCREEN (STUDENT VIEW)
+       ========================================== -->
+  <div id="no-test-view" class="no-test-container hidden">
+    <div class="no-test-card">
+      <div class="no-test-icon">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 16 14"></polyline>
+        </svg>
+      </div>
+      <h2>There is no test right now</h2>
+      <p>The examination is currently not published or questions have not been assigned yet.</p>
+      
+      <div id="candidate-info-box" style="margin: 20px 0; padding: 14px; background: #0f172a; border-radius: 8px; font-size: 0.9rem; border: 1px solid #334155;">
+        <div><strong id="no-test-name">Student Name</strong> (<span id="no-test-regno">Register Number</span>)</div>
+        <div style="color: #94a3b8; font-size: 0.82rem; margin-top: 4px;" id="no-test-dept-sec">ECE • Section A</div>
+      </div>
+
+      <p class="no-test-subtext">Please check back later or contact your department coordinator / advisor.</p>
+      <button type="button" class="btn-primary" id="btn-back-to-home" style="max-width: 220px; margin: 24px auto 0;">
+        <span>Return to Login</span>
+      </button>
+    </div>
+  </div>
+
   <!-- Application Scripts -->
-  <script src="supabase-config.js?v=3.0"></script>
-  <script src="questions.js?v=3.0"></script>
-  <script src="students.js?v=3.0"></script>
-  <script src="app.js?v=3.0"></script>
+  <script src="supabase-config.js?v=4.0"></script>
+  <script src="questions.js?v=4.0"></script>
+  <script src="students.js?v=4.0"></script>
+  <script src="app.js?v=4.0"></script>
 </body>
 </html>

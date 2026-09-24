@@ -29,7 +29,7 @@ const SupabaseAPI = {
     if (!SupabaseAPI.isConfigured()) return null;
     const clean = encodeURIComponent(regNo.trim().toUpperCase());
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 4000); // 4 second timeout
+    const timeout = setTimeout(() => controller.abort(), 4000);
 
     try {
       const res = await fetch(`${SUPABASE_CONFIG.url}/rest/v1/students?reg_no=eq.${clean}&select=*`, {
@@ -47,7 +47,48 @@ const SupabaseAPI = {
     }
   },
 
-  // 2. Check if student already submitted
+  // 2. Add New Student (Admin)
+  addStudent: async ({ reg_no, name, department, section }) => {
+    if (!SupabaseAPI.isConfigured()) return { success: false, error: 'Database not configured' };
+    try {
+      const res = await fetch(`${SUPABASE_CONFIG.url}/rest/v1/students`, {
+        method: 'POST',
+        headers: SupabaseAPI.getHeaders(),
+        body: JSON.stringify([{
+          reg_no: reg_no.trim().toUpperCase(),
+          name: name.trim(),
+          department: department.trim(),
+          section: section.trim().toUpperCase()
+        }])
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        return { success: false, error: errText };
+      }
+      const data = await res.json();
+      return { success: true, student: data[0] };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  // 3. Get All Students (Admin Directory)
+  getAllStudents: async () => {
+    if (!SupabaseAPI.isConfigured()) return [];
+    try {
+      const res = await fetch(`${SUPABASE_CONFIG.url}/rest/v1/students?select=*&order=reg_no.asc`, {
+        headers: SupabaseAPI.getHeaders()
+      });
+      if (!res.ok) return [];
+      return await res.json();
+    } catch (err) {
+      console.warn('[Supabase REST] getAllStudents error:', err);
+      return [];
+    }
+  },
+
+  // 4. Check if student already submitted
   checkExistingSubmission: async (regNo) => {
     if (!SupabaseAPI.isConfigured()) return null;
     const clean = encodeURIComponent(regNo.trim().toUpperCase());
@@ -70,12 +111,26 @@ const SupabaseAPI = {
     }
   },
 
-  // 3. Save Final Submission & Incorrect Answers
+  // 5. Get All Submissions (Admin Tracker)
+  getAllSubmissions: async () => {
+    if (!SupabaseAPI.isConfigured()) return [];
+    try {
+      const res = await fetch(`${SUPABASE_CONFIG.url}/rest/v1/submissions?select=*&order=submitted_at.desc`, {
+        headers: SupabaseAPI.getHeaders()
+      });
+      if (!res.ok) return [];
+      return await res.json();
+    } catch (err) {
+      console.warn('[Supabase REST] getAllSubmissions error:', err);
+      return [];
+    }
+  },
+
+  // 6. Save Final Submission & Incorrect Answers
   saveSubmission: async (submissionData, incorrectAnswers = []) => {
     if (!SupabaseAPI.isConfigured()) return null;
 
     try {
-      // Insert into submissions
       const subRes = await fetch(`${SUPABASE_CONFIG.url}/rest/v1/submissions`, {
         method: 'POST',
         headers: SupabaseAPI.getHeaders(),
@@ -99,7 +154,6 @@ const SupabaseAPI = {
       const inserted = await subRes.json();
       const submissionId = inserted && inserted[0] ? inserted[0].id : null;
 
-      // Insert incorrect answers if any
       if (incorrectAnswers.length > 0) {
         const rows = incorrectAnswers.map(item => ({
           submission_id: submissionId,
