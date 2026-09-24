@@ -641,9 +641,54 @@
         </div>
       </div>
 
-      <button type="button" class="btn-primary" id="btn-result-return" style="max-width: 240px; margin: 10px auto 0;">
-        <span>Return to Student Portal</span>
-      </button>
+      <!-- Action & Download Buttons -->
+      <div class="result-actions-grid">
+        <button type="button" class="btn-download-key" id="btn-download-pdf">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <span>📥 Download Answer Key (PDF / Print)</span>
+        </button>
+
+        <button type="button" class="btn-secondary" id="btn-download-csv-answers" style="border-color: #3b82f6; color: #93c5fd;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+            <polyline points="10 9 9 9 8 9"></polyline>
+          </svg>
+          <span>📊 Download Answer Key (.CSV)</span>
+        </button>
+
+        <button type="button" class="btn-secondary" id="btn-result-return">
+          <span>Return to Student Portal</span>
+        </button>
+      </div>
+
+      <!-- Detailed Question-by-Question Review Section -->
+      <section class="answer-review-section">
+        <div class="answer-review-header">
+          <div>
+            <h3>Detailed Question-by-Question Answer Key</h3>
+            <p style="font-size: 0.82rem; color: #94a3b8; margin: 0;">Review every question with your answer, correctness, and the official answer key.</p>
+          </div>
+
+          <!-- Filter Pills -->
+          <div class="review-filter-bar">
+            <button type="button" class="review-filter-btn active" data-filter="all" id="btn-filter-all">All (<span id="count-all-q">0</span>)</button>
+            <button type="button" class="review-filter-btn" data-filter="wrong" id="btn-filter-wrong" style="color: #fca5a5;">Wrong / Incorrect (<span id="count-wrong-q">0</span>)</button>
+            <button type="button" class="review-filter-btn" data-filter="correct" id="btn-filter-correct" style="color: #86efac;">Correct (<span id="count-correct-q">0</span>)</button>
+          </div>
+        </div>
+
+        <!-- Rendered Cards -->
+        <div class="review-cards-list" id="review-cards-container">
+          <!-- Dynamically populated review cards -->
+        </div>
+      </section>
     </div>
   </div>
 

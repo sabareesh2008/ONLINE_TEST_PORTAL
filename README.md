@@ -19,6 +19,15 @@ A modern, responsive, high-performance web-based technical assessment platform b
    - **Instant Evaluation & Results Screen**:
      - Calculates score, percentage, correct answer breakdown, and time spent.
      - Saves submission directly to Supabase cloud and local storage.
+   - **📥 Downloadable Answer Key & Solutions (PDF & CSV)**:
+     - **PDF / Printable Report**: Formatted institutional document ready to print or save as PDF, showing candidate metadata, score summary, and itemized questions.
+     - **CSV Export**: Clean spreadsheet format (`Answer_Key_<reg_no>.csv`) for student archival.
+     - **Detailed Wrong vs. Correct Highlight**:
+       - ❌ **Wrong/Incorrect**: Flags the question, clearly showing both candidate's wrong response in red and the official correct answer in green.
+       - ✔ **Correct**: Confirms student's correct response with mark credit.
+       - ⚠ **Unanswered**: Shows the skipped status alongside the official correct answer.
+       - **Explanations**: Renders step-by-step solutions and rationale.
+     - **Interactive Filter**: Filter review cards by *All*, *Wrong / Incorrect*, or *Correct*.
 
 2. **Faculty & Admin Command Center (`admin` / `admin123`)**:
    - **Assessment Publishing Controller**: Instant toggle to Publish or Unpublish the test with custom test title and duration.
