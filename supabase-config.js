@@ -1,8 +1,7 @@
-// Supabase Configuration
-// Replace these with your actual Supabase Project URL and Anon Public Key from Project Settings > API
+// Supabase Live Configuration
 const SUPABASE_CONFIG = {
-  url: "https://YOUR_PROJECT_ID.supabase.co",
-  anonKey: "YOUR_SUPABASE_ANON_PUBLIC_KEY"
+  url: "https://jehhjilmqoljxmsvnwgd.supabase.co",
+  anonKey: "sb_publishable_4x2bY6PkwBmfdIW47ILf3w_L-Q0JoJQ"
 };
 
 // Initialize Supabase Client
@@ -11,12 +10,9 @@ let supabaseClient = null;
 function getSupabaseClient() {
   if (supabaseClient) return supabaseClient;
   
-  // Check if real credentials have been provided
   if (
     SUPABASE_CONFIG.url && 
     SUPABASE_CONFIG.anonKey && 
-    !SUPABASE_CONFIG.url.includes("YOUR_PROJECT_ID") &&
-    !SUPABASE_CONFIG.anonKey.includes("YOUR_SUPABASE_ANON") &&
     window.supabase
   ) {
     try {
