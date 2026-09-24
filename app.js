@@ -38,7 +38,13 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
 
     // Result & Evaluation state
     lastResult: savedLastResult,
-    reviewFilter: 'all'
+    reviewFilter: 'all',
+
+    // Section Tracker & Analytics State
+    activeSectionDrilldown: null,
+    drilldownFilter: 'all',
+    submissionSectionFilter: 'ALL',
+    submissionSearchQuery: ''
   };
 
   // Keep window.QUESTIONS_BANK in sync
@@ -117,9 +123,31 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
   const searchDirStudent = document.getElementById('search-dir-student');
   const studentRosterTbody = document.getElementById('student-roster-tbody');
 
-  // Admin Tab 5 (Analytics)
+  // Admin Tab 3 (Analytics & Section Tracker)
   const sectionProgressCards = document.getElementById('section-progress-cards');
   const submissionsTbody = document.getElementById('submissions-tbody');
+  const btnDownloadAllSubmissions = document.getElementById('btn-download-all-submissions');
+  const filterSubmissionSection = document.getElementById('filter-submission-section');
+  const searchSubmissionStudent = document.getElementById('search-submission-student');
+
+  // Section Drilldown Elements
+  const sectionDrilldownPanel = document.getElementById('section-drilldown-panel');
+  const drilldownTitle = document.getElementById('drilldown-title');
+  const drilldownSubtitle = document.getElementById('drilldown-subtitle');
+  const btnDownloadSectionReport = document.getElementById('btn-download-section-report');
+  const btnDownloadSectionText = document.getElementById('btn-download-section-text');
+  const btnCloseDrilldown = document.getElementById('btn-close-drilldown');
+  const drilldownEnrolled = document.getElementById('drilldown-enrolled');
+  const drilldownCompleted = document.getElementById('drilldown-completed');
+  const drilldownPending = document.getElementById('drilldown-pending');
+  const drilldownAvg = document.getElementById('drilldown-avg');
+  const drilldownFilterAll = document.getElementById('drilldown-filter-all');
+  const drilldownFilterCompleted = document.getElementById('drilldown-filter-completed');
+  const drilldownFilterPending = document.getElementById('drilldown-filter-pending');
+  const drilldownCountAll = document.getElementById('drilldown-count-all');
+  const drilldownCountCompleted = document.getElementById('drilldown-count-completed');
+  const drilldownCountPending = document.getElementById('drilldown-count-pending');
+  const drilldownTbody = document.getElementById('drilldown-tbody');
 
   // Exam Workspace Elements
   const examAvatar = document.getElementById('exam-avatar');
@@ -183,6 +211,7 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
     setupQuestionManager();
     setupExamWorkspace();
     setupResultReview();
+    setupAnalyticsTracker();
 
     // Check if admin is currently active
     if (state.isAdminLoggedIn) {
@@ -2067,8 +2096,77 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
     `).join('');
   }
 
+  // ========================================================
+  // 8.1. SECTION TRACKER, DRILLDOWN & EXPORT LOGIC
+  // ========================================================
+
+  function setupAnalyticsTracker() {
+    // 1. Download All Submissions CSV
+    if (btnDownloadAllSubmissions) {
+      btnDownloadAllSubmissions.addEventListener('click', (e) => {
+        e.preventDefault();
+        downloadAllSubmissionsCSV();
+      });
+    }
+
+    // 2. Download Section Report CSV
+    if (btnDownloadSectionReport) {
+      btnDownloadSectionReport.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (state.activeSectionDrilldown) {
+          downloadSectionReportCSV(state.activeSectionDrilldown);
+        } else {
+          alert('Please select a section first.');
+        }
+      });
+    }
+
+    // 3. Close Drilldown Panel
+    if (btnCloseDrilldown) {
+      btnCloseDrilldown.addEventListener('click', (e) => {
+        e.preventDefault();
+        state.activeSectionDrilldown = null;
+        renderAnalytics();
+      });
+    }
+
+    // 4. Drilldown Filter Pills (All / Completed / Pending)
+    const drilldownPills = [
+      { el: drilldownFilterAll, key: 'all' },
+      { el: drilldownFilterCompleted, key: 'completed' },
+      { el: drilldownFilterPending, key: 'pending' }
+    ];
+    drilldownPills.forEach(({ el, key }) => {
+      if (el) {
+        el.addEventListener('click', (e) => {
+          e.preventDefault();
+          drilldownPills.forEach(p => { if (p.el) p.el.classList.remove('active'); });
+          el.classList.add('active');
+          state.drilldownFilter = key;
+          renderSectionDrilldown();
+        });
+      }
+    });
+
+    // 5. Submissions Table Section Filter
+    if (filterSubmissionSection) {
+      filterSubmissionSection.addEventListener('change', () => {
+        state.submissionSectionFilter = filterSubmissionSection.value;
+        renderSubmissionsTable();
+      });
+    }
+
+    // 6. Submissions Table Search Input
+    if (searchSubmissionStudent) {
+      searchSubmissionStudent.addEventListener('input', () => {
+        state.submissionSearchQuery = searchSubmissionStudent.value.trim().toLowerCase();
+        renderSubmissionsTable();
+      });
+    }
+  }
+
   function renderAnalytics() {
-    if (!sectionProgressCards || !submissionsTbody) return;
+    if (!sectionProgressCards) return;
 
     const sections = ['A', 'B', 'C', 'D', 'E', 'F'];
 
@@ -2076,33 +2174,339 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
       const enrolled = state.allStudents.filter(s => s.section === sec).length;
       const completed = state.submissions.filter(sub => sub.section === sec).length;
       const pct = enrolled > 0 ? Math.round((completed / enrolled) * 100) : 0;
+      const isActive = state.activeSectionDrilldown === sec;
 
       return `
-        <div class="stat-card">
-          <div class="stat-title">Section ${sec} Progress</div>
-          <div class="stat-value" style="font-size: 1.5rem; display: flex; align-items: baseline; gap: 8px;">
-            <span>${completed} <span style="font-size: 0.9rem; color: #94a3b8; font-weight: normal;">/ ${enrolled}</span></span>
-            <span style="font-size: 0.85rem; color: ${pct === 100 ? '#10b981' : '#60a5fa'}; margin-left: auto;">${pct}%</span>
+        <div class="stat-card section-card-interactive ${isActive ? 'active' : ''}" data-sec="${sec}" title="Click to open Section ${sec} student list and test submissions">
+          <div class="stat-title" style="display: flex; justify-content: space-between; align-items: center;">
+            <strong style="color: #f1f5f9; font-size: 0.95rem;">Section ${sec} Progress</strong>
+            <span style="font-size: 0.82rem; font-weight: 700; color: ${pct === 100 ? '#10b981' : '#38bdf8'};">${pct}%</span>
+          </div>
+          <div class="stat-value" style="font-size: 1.45rem; display: flex; align-items: baseline; gap: 8px; margin-top: 6px;">
+            <span>${completed} <span style="font-size: 0.88rem; color: #94a3b8; font-weight: normal;">/ ${enrolled}</span></span>
+            <span style="font-size: 0.78rem; color: ${completed > 0 ? '#10b981' : '#94a3b8'}; margin-left: auto;">${completed} Submitted</span>
+          </div>
+          <div class="card-action-hint">
+            <span>${isActive ? '▼ Viewing Section ' + sec + ' (Click to close)' : '📂 Open Section ' + sec + ' Roster →'}</span>
           </div>
         </div>
       `;
     }).join('');
 
-    if (state.submissions.length === 0) {
-      submissionsTbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #64748b; padding: 24px;">No student submissions recorded yet.</td></tr>`;
-    } else {
-      submissionsTbody.innerHTML = state.submissions.map(sub => `
+    // Attach click events to open section drilldown
+    document.querySelectorAll('.section-card-interactive').forEach(card => {
+      card.addEventListener('click', () => {
+        const sec = card.getAttribute('data-sec');
+        if (state.activeSectionDrilldown === sec) {
+          state.activeSectionDrilldown = null;
+        } else {
+          state.activeSectionDrilldown = sec;
+          if (filterSubmissionSection) {
+            filterSubmissionSection.value = sec;
+            state.submissionSectionFilter = sec;
+          }
+        }
+        renderAnalytics();
+      });
+    });
+
+    renderSectionDrilldown();
+    renderSubmissionsTable();
+  }
+
+  function renderSectionDrilldown() {
+    if (!sectionDrilldownPanel) return;
+
+    const sec = state.activeSectionDrilldown;
+    if (!sec) {
+      sectionDrilldownPanel.classList.add('hidden');
+      return;
+    }
+
+    sectionDrilldownPanel.classList.remove('hidden');
+
+    const enrolledStudents = state.allStudents.filter(s => s.section === sec);
+    const completedSubs = state.submissions.filter(s => s.section === sec);
+    const subMap = new Map();
+    completedSubs.forEach(sub => {
+      subMap.set(sub.reg_no.toUpperCase(), sub);
+    });
+
+    const enrolledCount = enrolledStudents.length;
+    const completedCount = completedSubs.length;
+    const pendingCount = Math.max(0, enrolledCount - completedCount);
+
+    let avgPercentage = '0.0';
+    if (completedCount > 0) {
+      const sumPct = completedSubs.reduce((acc, curr) => acc + (parseFloat(curr.percentage) || 0), 0);
+      avgPercentage = (sumPct / completedCount).toFixed(1);
+    }
+
+    if (drilldownTitle) drilldownTitle.textContent = `Section ${sec} Candidate Performance Breakdown`;
+    if (drilldownSubtitle) drilldownSubtitle.textContent = `Showing all ${enrolledCount} enrolled students in Section ${sec} and test completion records.`;
+    if (btnDownloadSectionText) btnDownloadSectionText.textContent = `Download Section ${sec} Report (.CSV)`;
+
+    if (drilldownEnrolled) drilldownEnrolled.textContent = enrolledCount;
+    if (drilldownCompleted) drilldownCompleted.textContent = completedCount;
+    if (drilldownPending) drilldownPending.textContent = pendingCount;
+    if (drilldownAvg) drilldownAvg.textContent = `${avgPercentage}%`;
+
+    if (drilldownCountAll) drilldownCountAll.textContent = enrolledCount;
+    if (drilldownCountCompleted) drilldownCountCompleted.textContent = completedCount;
+    if (drilldownCountPending) drilldownCountPending.textContent = pendingCount;
+
+    // Filter by drilldownFilter ('all', 'completed', 'pending')
+    const filter = state.drilldownFilter || 'all';
+    const filteredRoster = enrolledStudents.filter(s => {
+      const hasSub = subMap.has(s.reg_no.toUpperCase());
+      if (filter === 'completed') return hasSub;
+      if (filter === 'pending') return !hasSub;
+      return true;
+    });
+
+    if (!drilldownTbody) return;
+
+    if (filteredRoster.length === 0) {
+      drilldownTbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: #64748b; padding: 24px;">No candidates found matching this filter (${filter}).</td></tr>`;
+      return;
+    }
+
+    drilldownTbody.innerHTML = filteredRoster.map((s, idx) => {
+      const sub = subMap.get(s.reg_no.toUpperCase());
+      const isCompleted = !!sub;
+
+      const statusBadge = isCompleted
+        ? `<span class="badge-status-completed">✔ Completed</span>`
+        : `<span class="badge-status-pending">⏳ Pending</span>`;
+
+      const scoreDisplay = isCompleted
+        ? `<strong style="color: #10b981;">${sub.obtained_marks} / ${sub.total_marks}</strong>`
+        : `<span style="color: #64748b;">—</span>`;
+
+      const pctDisplay = isCompleted
+        ? `<strong style="color: ${parseFloat(sub.percentage) >= 50 ? '#10b981' : '#ef4444'};">${sub.percentage}%</strong>`
+        : `<span style="color: #64748b;">—</span>`;
+
+      let timeFormatted = '—';
+      if (isCompleted && sub.time_taken_seconds !== undefined) {
+        const mins = Math.floor(sub.time_taken_seconds / 60);
+        const secs = sub.time_taken_seconds % 60;
+        timeFormatted = `${mins}m ${secs}s`;
+      }
+
+      const dateDisplay = isCompleted
+        ? `<span style="font-size: 0.82rem; color: #cbd5e1;">${new Date(sub.submitted_at).toLocaleString()}</span>`
+        : `<span style="color: #64748b; font-size: 0.82rem;">Not Attempted</span>`;
+
+      return `
         <tr>
+          <td style="color: #64748b;">${idx + 1}</td>
+          <td><strong style="color: #f1f5f9; font-family: monospace;">${s.reg_no}</strong></td>
+          <td>${escapeHtml(s.name)}</td>
+          <td>${statusBadge}</td>
+          <td>${scoreDisplay}</td>
+          <td>${pctDisplay}</td>
+          <td style="color: #94a3b8; font-size: 0.84rem;">${timeFormatted}</td>
+          <td>${dateDisplay}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function renderSubmissionsTable() {
+    if (!submissionsTbody) return;
+
+    const filterSec = state.submissionSectionFilter || 'ALL';
+    const query = state.submissionSearchQuery || '';
+
+    const filtered = state.submissions.filter(sub => {
+      const matchSec = (filterSec === 'ALL') || (sub.section === filterSec);
+      const matchSearch = !query ||
+        sub.student_name.toLowerCase().includes(query) ||
+        sub.reg_no.toLowerCase().includes(query);
+      return matchSec && matchSearch;
+    });
+
+    if (filtered.length === 0) {
+      submissionsTbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: #64748b; padding: 24px;">No student submissions found matching the criteria.</td></tr>`;
+      return;
+    }
+
+    submissionsTbody.innerHTML = filtered.map((sub, idx) => {
+      let timeFormatted = '—';
+      if (sub.time_taken_seconds !== undefined) {
+        const mins = Math.floor(sub.time_taken_seconds / 60);
+        const secs = sub.time_taken_seconds % 60;
+        timeFormatted = `${mins}m ${secs}s`;
+      }
+
+      return `
+        <tr>
+          <td style="color: #64748b;">${idx + 1}</td>
           <td><strong style="color: #f1f5f9; font-family: monospace;">${sub.reg_no}</strong></td>
           <td>${escapeHtml(sub.student_name)}</td>
           <td>${escapeHtml(sub.department)}</td>
           <td><span class="badge-sec">Sec ${escapeHtml(sub.section)}</span></td>
           <td><strong style="color: #10b981;">${sub.obtained_marks} / ${sub.total_marks}</strong></td>
-          <td>${sub.percentage}%</td>
-          <td>${new Date(sub.submitted_at).toLocaleString()}</td>
+          <td><span style="font-weight: 700; color: ${parseFloat(sub.percentage) >= 50 ? '#10b981' : '#ef4444'};">${sub.percentage}%</span></td>
+          <td style="color: #94a3b8; font-size: 0.84rem;">${timeFormatted}</td>
+          <td style="color: #94a3b8; font-size: 0.82rem;">${new Date(sub.submitted_at).toLocaleString()}</td>
         </tr>
-      `).join('');
+      `;
+    }).join('');
+  }
+
+  // Download All Submissions as CSV file
+  function downloadAllSubmissionsCSV() {
+    if (!state.submissions || state.submissions.length === 0) {
+      alert('No student submissions found to export.');
+      return;
     }
+
+    function csvCell(val) {
+      if (val === null || val === undefined) return '""';
+      const clean = String(val).replace(/"/g, '""');
+      return `"${clean}"`;
+    }
+
+    const rows = [];
+    rows.push([csvCell('TECHNICAL ASSESSMENT - ALL CANDIDATE SUBMISSIONS EXPORT')]);
+    rows.push([csvCell('Examination Title:'), csvCell(state.testTitle || 'Technical Assessment 2026')]);
+    rows.push([csvCell('Total Submissions Recorded:'), csvCell(state.submissions.length)]);
+    rows.push([csvCell('Export Date:'), csvCell(new Date().toLocaleString())]);
+    rows.push([]);
+    rows.push([
+      csvCell('#'),
+      csvCell('Register Number'),
+      csvCell('Candidate Name'),
+      csvCell('Department'),
+      csvCell('Section'),
+      csvCell('Obtained Marks'),
+      csvCell('Total Marks'),
+      csvCell('Percentage (%)'),
+      csvCell('Time Taken'),
+      csvCell('Submission Date & Time')
+    ]);
+
+    state.submissions.forEach((sub, idx) => {
+      let timeFormatted = 'N/A';
+      if (sub.time_taken_seconds !== undefined) {
+        const mins = Math.floor(sub.time_taken_seconds / 60);
+        const secs = sub.time_taken_seconds % 60;
+        timeFormatted = `${mins}m ${secs}s`;
+      }
+
+      rows.push([
+        csvCell(idx + 1),
+        csvCell(sub.reg_no),
+        csvCell(sub.student_name),
+        csvCell(sub.department),
+        csvCell(sub.section),
+        csvCell(sub.obtained_marks),
+        csvCell(sub.total_marks),
+        csvCell(`${sub.percentage}%`),
+        csvCell(timeFormatted),
+        csvCell(new Date(sub.submitted_at).toLocaleString())
+      ]);
+    });
+
+    const csvContent = rows.map(r => r.join(',')).join('\r\n');
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `All_Assessment_Submissions_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }, 200);
+  }
+
+  // Download Section-Specific Report as CSV file
+  function downloadSectionReportCSV(sec) {
+    const enrolledStudents = state.allStudents.filter(s => s.section === sec);
+    if (enrolledStudents.length === 0) {
+      alert(`No students found for Section ${sec}.`);
+      return;
+    }
+
+    const completedSubs = state.submissions.filter(s => s.section === sec);
+    const subMap = new Map();
+    completedSubs.forEach(sub => {
+      subMap.set(sub.reg_no.toUpperCase(), sub);
+    });
+
+    function csvCell(val) {
+      if (val === null || val === undefined) return '""';
+      const clean = String(val).replace(/"/g, '""');
+      return `"${clean}"`;
+    }
+
+    const rows = [];
+    rows.push([csvCell(`TECHNICAL ASSESSMENT - SECTION ${sec} CANDIDATE PERFORMANCE REPORT`)]);
+    rows.push([csvCell('Examination Title:'), csvCell(state.testTitle || 'Technical Assessment 2026')]);
+    rows.push([csvCell('Section:'), csvCell(`Section ${sec}`)]);
+    rows.push([csvCell('Total Enrolled Students:'), csvCell(enrolledStudents.length)]);
+    rows.push([csvCell('Completed Submissions:'), csvCell(completedSubs.length)]);
+    rows.push([csvCell('Pending Candidates:'), csvCell(enrolledStudents.length - completedSubs.length)]);
+    rows.push([csvCell('Export Date:'), csvCell(new Date().toLocaleString())]);
+    rows.push([]);
+    rows.push([
+      csvCell('#'),
+      csvCell('Register Number'),
+      csvCell('Candidate Name'),
+      csvCell('Department'),
+      csvCell('Section'),
+      csvCell('Status'),
+      csvCell('Obtained Marks'),
+      csvCell('Total Marks'),
+      csvCell('Percentage (%)'),
+      csvCell('Time Taken'),
+      csvCell('Submission Date & Time')
+    ]);
+
+    enrolledStudents.forEach((s, idx) => {
+      const sub = subMap.get(s.reg_no.toUpperCase());
+      const isCompleted = !!sub;
+
+      let timeFormatted = '—';
+      if (isCompleted && sub.time_taken_seconds !== undefined) {
+        const mins = Math.floor(sub.time_taken_seconds / 60);
+        const secs = sub.time_taken_seconds % 60;
+        timeFormatted = `${mins}m ${secs}s`;
+      }
+
+      rows.push([
+        csvCell(idx + 1),
+        csvCell(s.reg_no),
+        csvCell(s.name),
+        csvCell(s.department),
+        csvCell(s.section),
+        csvCell(isCompleted ? 'Completed' : 'Pending'),
+        csvCell(isCompleted ? sub.obtained_marks : '—'),
+        csvCell(isCompleted ? sub.total_marks : '—'),
+        csvCell(isCompleted ? `${sub.percentage}%` : '—'),
+        csvCell(timeFormatted),
+        csvCell(isCompleted ? new Date(sub.submitted_at).toLocaleString() : 'Not Attempted')
+      ]);
+    });
+
+    const csvContent = rows.map(r => r.join(',')).join('\r\n');
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Section_${sec}_Performance_Report_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }, 200);
   }
 
   // ========================================================

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Technical Assessment Portal 2026</title>
-  <link rel="stylesheet" href="style.css?v=7.0">
+  <link rel="stylesheet" href="style.css?v=8.0">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -796,34 +796,153 @@
       </div>
     </div>
 
-    <!-- TAB 3: SECTION ANALYTICS & SUBMISSIONS -->
+    <!-- TAB 3: SECTION ANALYTICS & SUBMISSIONS TRACKER -->
     <div id="admin-tab-analytics" class="admin-tab-content hidden">
       <div class="admin-panel-card">
-        <h3>Section-wise Completion & Submissions</h3>
-        <p class="card-desc">Track real-time candidate completion rates across sections A through F.</p>
+        <!-- Top Title & Export Action Toolbar -->
+        <div class="table-toolbar" style="margin-bottom: 20px;">
+          <div>
+            <h3 style="font-size: 1.25rem; margin-bottom: 4px;">Section-wise Completion & Submission Tracker</h3>
+            <p class="card-desc" style="margin-bottom: 0;">Click on any section card below to open its roster, inspect student statuses, or download section reports.</p>
+          </div>
 
-        <!-- Section Progress Grid -->
-        <div class="stats-grid" id="section-progress-cards" style="margin-bottom: 30px;">
-          <!-- Dynamically populated -->
+          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button type="button" class="btn-portal-primary" id="btn-download-all-submissions" style="padding: 9px 18px; font-size: 0.88rem;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+              <span>Download All Submissions (.CSV)</span>
+            </button>
+          </div>
         </div>
 
-        <h4 style="margin-bottom: 14px; font-size: 1rem;">Recent Submissions Log</h4>
+        <!-- Section Progress Grid (Interactive Clickable Cards A to F) -->
+        <div class="stats-grid" id="section-progress-cards" style="margin-bottom: 24px;">
+          <!-- Dynamically populated interactive section cards -->
+        </div>
+
+        <!-- Section Drilldown Panel (Opens when a section card is clicked) -->
+        <div id="section-drilldown-panel" class="section-drilldown-box hidden" style="margin-bottom: 30px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
+            <div>
+              <h4 style="font-size: 1.15rem; color: #f8fafc; margin-bottom: 3px;" id="drilldown-title">Section A Detailed Breakdown</h4>
+              <p style="font-size: 0.84rem; color: #94a3b8; margin-bottom: 0;" id="drilldown-subtitle">Showing all 62 enrolled students and test submission statuses.</p>
+            </div>
+
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+              <button type="button" class="btn-portal-secondary" id="btn-download-section-report" style="padding: 8px 16px; font-size: 0.85rem;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                <span id="btn-download-section-text">Download Section A Report (.CSV)</span>
+              </button>
+
+              <button type="button" class="btn-portal-neutral" id="btn-close-drilldown" style="padding: 8px 14px; font-size: 0.85rem;">
+                <span>✕ Close Section</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Quick Stat Tiles for the Opened Section -->
+          <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 18px;">
+            <div class="stat-card" style="padding: 12px;">
+              <div class="stat-title" style="font-size: 0.76rem;">Enrolled Students</div>
+              <div class="stat-value" id="drilldown-enrolled" style="font-size: 1.3rem; color: #60a5fa;">0</div>
+            </div>
+            <div class="stat-card" style="padding: 12px;">
+              <div class="stat-title" style="font-size: 0.76rem;">Completed</div>
+              <div class="stat-value" id="drilldown-completed" style="font-size: 1.3rem; color: #10b981;">0</div>
+            </div>
+            <div class="stat-card" style="padding: 12px;">
+              <div class="stat-title" style="font-size: 0.76rem;">Pending / Not Started</div>
+              <div class="stat-value" id="drilldown-pending" style="font-size: 1.3rem; color: #f59e0b;">0</div>
+            </div>
+            <div class="stat-card" style="padding: 12px;">
+              <div class="stat-title" style="font-size: 0.76rem;">Class Average</div>
+              <div class="stat-value" id="drilldown-avg" style="font-size: 1.3rem; color: #a78bfa;">0%</div>
+            </div>
+          </div>
+
+          <!-- Filter Pills for Section Candidates -->
+          <div style="display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; align-items: center;">
+            <span style="font-size: 0.82rem; color: #94a3b8; font-weight: 600;">Filter:</span>
+            <button type="button" class="filter-chip active" id="drilldown-filter-all">
+              <span>All Candidates (<strong id="drilldown-count-all">0</strong>)</span>
+            </button>
+            <button type="button" class="filter-chip chip-correct" id="drilldown-filter-completed">
+              <span>Completed (<strong id="drilldown-count-completed">0</strong>)</span>
+            </button>
+            <button type="button" class="filter-chip chip-wrong" id="drilldown-filter-pending">
+              <span>Pending (<strong id="drilldown-count-pending">0</strong>)</span>
+            </button>
+          </div>
+
+          <!-- Section Detailed Student Table -->
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th style="width: 45px;">#</th>
+                  <th>Register Number</th>
+                  <th>Student Name</th>
+                  <th style="width: 110px;">Status</th>
+                  <th style="width: 110px;">Score</th>
+                  <th style="width: 90px;">Percentage</th>
+                  <th style="width: 110px;">Time Taken</th>
+                  <th>Submitted At</th>
+                </tr>
+              </thead>
+              <tbody id="drilldown-tbody">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Master Submissions Log Table -->
+        <div class="table-toolbar" style="margin-top: 10px;">
+          <div>
+            <h4 style="font-size: 1.05rem; margin-bottom: 2px;">Submissions Log</h4>
+            <p class="card-desc" style="margin-bottom: 0;">Comprehensive record of completed student submissions.</p>
+          </div>
+
+          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <select id="filter-submission-section" class="form-control" style="width: auto;">
+              <option value="ALL">All Sections (A-F)</option>
+              <option value="A">Section A</option>
+              <option value="B">Section B</option>
+              <option value="C">Section C</option>
+              <option value="D">Section D</option>
+              <option value="E">Section E</option>
+              <option value="F">Section F</option>
+            </select>
+
+            <input type="text" id="search-submission-student" class="form-control search-input" placeholder="Search by name or reg no...">
+          </div>
+        </div>
+
         <div class="table-responsive">
           <table class="data-table">
             <thead>
               <tr>
+                <th style="width: 45px;">#</th>
                 <th>Register No</th>
                 <th>Student Name</th>
                 <th>Department</th>
                 <th>Section</th>
                 <th>Marks</th>
                 <th>Percentage</th>
+                <th>Time Taken</th>
                 <th>Submitted At</th>
               </tr>
             </thead>
             <tbody id="submissions-tbody">
               <tr>
-                <td colspan="7" style="text-align: center; color: #64748b; padding: 24px;">No student submissions recorded yet.</td>
+                <td colspan="9" style="text-align: center; color: #64748b; padding: 24px;">No student submissions recorded yet.</td>
               </tr>
             </tbody>
           </table>
@@ -1060,9 +1179,9 @@
   <!-- SheetJS CDN for robust Excel (.xlsx/.xls) and CSV parsing -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <!-- Application Scripts -->
-  <script src="supabase-config.js?v=7.0"></script>
-  <script src="questions.js?v=7.0"></script>
-  <script src="students.js?v=7.0"></script>
-  <script src="app.js?v=7.0"></script>
+  <script src="supabase-config.js?v=8.0"></script>
+  <script src="questions.js?v=8.0"></script>
+  <script src="students.js?v=8.0"></script>
+  <script src="app.js?v=8.0"></script>
 </body>
 </html>
