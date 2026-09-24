@@ -59,6 +59,7 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
   const studentLoginView = document.getElementById('student-login-view');
   const adminLoginView = document.getElementById('admin-login-view');
   const adminDashboardView = document.getElementById('admin-dashboard-view');
+  const alreadySubmittedView = document.getElementById('already-submitted-view');
   const noTestView = document.getElementById('no-test-view');
   const examView = document.getElementById('exam-view');
   const resultView = document.getElementById('result-view');
@@ -77,6 +78,15 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
   const noTestRegno = document.getElementById('no-test-regno');
   const noTestDeptSec = document.getElementById('no-test-dept-sec');
   const btnBackToHome = document.getElementById('btn-back-to-home');
+
+  // DOM Elements - Already Submitted Screen
+  const asStudentName = document.getElementById('as-student-name');
+  const asRegNo = document.getElementById('as-reg-no');
+  const asDeptSec = document.getElementById('as-dept-sec');
+  const asScore = document.getElementById('as-score');
+  const asPct = document.getElementById('as-pct');
+  const asTime = document.getElementById('as-time');
+  const btnBackFromSubmitted = document.getElementById('btn-back-from-submitted');
 
   // DOM Elements - Admin Login
   const adminLoginForm = document.getElementById('admin-login-form');
@@ -274,7 +284,7 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
   }
 
   function showView(targetView) {
-    [studentLoginView, adminLoginView, adminDashboardView, noTestView, examView, resultView].forEach(v => {
+    [studentLoginView, adminLoginView, adminDashboardView, alreadySubmittedView, noTestView, examView, resultView].forEach(v => {
       if (v) v.classList.add('hidden');
     });
     if (targetView) targetView.classList.remove('hidden');
@@ -423,6 +433,32 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
         btnEnter.disabled = false;
         btnEnter.innerHTML = originalText;
 
+        // ── DUPLICATE SUBMISSION GUARD ──────────────────────────────────
+        // Check if this student already submitted (localStorage first, then state)
+        const localSubs = JSON.parse(localStorage.getItem('portal_submissions') || '[]');
+        const allSubs = localSubs.length > 0 ? localSubs : state.submissions;
+        const prevSub = allSubs.find(s =>
+          s.reg_no && s.reg_no.toUpperCase() === matchedStudent.reg_no.toUpperCase()
+        );
+
+        if (prevSub) {
+          // Populate the already-submitted info card
+          if (asStudentName) asStudentName.textContent = prevSub.name || matchedStudent.name;
+          if (asRegNo) asRegNo.textContent = prevSub.reg_no || matchedStudent.reg_no;
+          if (asDeptSec) asDeptSec.textContent = `${prevSub.department || matchedStudent.department} • Section ${prevSub.section || matchedStudent.section}`;
+          if (asScore) asScore.textContent = `${prevSub.obtained_marks ?? '—'} / ${prevSub.total_marks ?? '—'}`;
+          if (asPct) asPct.textContent = prevSub.percentage != null ? `${prevSub.percentage}%` : '—';
+          if (asTime) {
+            const submittedDate = prevSub.submitted_at ? new Date(prevSub.submitted_at) : null;
+            asTime.textContent = submittedDate
+              ? submittedDate.toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+              : '—';
+          }
+          showView(alreadySubmittedView);
+          return;
+        }
+        // ── END DUPLICATE GUARD ─────────────────────────────────────────
+
         // Check if test is published and questions are assigned
         if (!state.isTestPublished || !state.questions || state.questions.length === 0) {
           noTestName.textContent = state.student.name;
@@ -441,6 +477,15 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
         btnEnter.innerHTML = originalText;
       }
     });
+
+    // Wire "Back to Home" on already-submitted screen
+    if (btnBackFromSubmitted) {
+      btnBackFromSubmitted.addEventListener('click', () => {
+        state.student = null;
+        showView(studentLoginView);
+        if (regNoInput) regNoInput.value = '';
+      });
+    }
   }
 
   // ========================================================
@@ -1415,11 +1460,22 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
       }
     }
 
-    // Save to localStorage submissions
+    // Save to localStorage submissions (duplicate-guarded)
     const localSubs = JSON.parse(localStorage.getItem('portal_submissions') || '[]');
-    localSubs.unshift(submissionData);
-    localStorage.setItem('portal_submissions', JSON.stringify(localSubs));
-    state.submissions.unshift(submissionData);
+    const alreadyExists = localSubs.some(s =>
+      s.reg_no && s.reg_no.toUpperCase() === submissionData.reg_no.toUpperCase()
+    );
+    if (!alreadyExists) {
+      localSubs.unshift(submissionData);
+      localStorage.setItem('portal_submissions', JSON.stringify(localSubs));
+      // Only push into in-memory state if not already present
+      const inMemDup = state.submissions.some(s =>
+        s.reg_no && s.reg_no.toUpperCase() === submissionData.reg_no.toUpperCase()
+      );
+      if (!inMemDup) state.submissions.unshift(submissionData);
+    } else {
+      console.warn('[Duplicate Guard] Submission for', submissionData.reg_no, 'already exists. Skipping save.');
+    }
 
     // Populate Results View Summary Banner
     if (resStudentName && state.student) resStudentName.textContent = state.student.name;

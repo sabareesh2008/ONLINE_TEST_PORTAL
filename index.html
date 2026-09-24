@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Technical Assessment Portal 2026</title>
-  <link rel="stylesheet" href="style.css?v=8.0">
+  <link rel="stylesheet" href="style.css?v=9.0">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -952,6 +952,42 @@
   </div>
 
   <!-- ==========================================
+       VIEW 4A: ALREADY SUBMITTED BLOCK SCREEN
+       ========================================== -->
+  <div id="already-submitted-view" class="no-test-container hidden">
+    <div class="no-test-card" style="border: 1.5px solid #ef444455; box-shadow: 0 0 40px #ef444415;">
+      <div class="no-test-icon">
+        <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+      </div>
+      <h2 style="color: #ef4444;">Test Already Submitted</h2>
+      <p style="color: #94a3b8; margin-bottom: 8px;">You have already completed and submitted this assessment. Multiple submissions are not allowed.</p>
+
+      <div id="already-submitted-info" style="margin: 18px 0; padding: 14px 18px; background: #0f172a; border-radius: 10px; font-size: 0.9rem; border: 1px solid #334155; text-align: left;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+          <strong id="as-student-name" style="font-size:1rem; color:#f1f5f9;">—</strong>
+          <span id="as-reg-no" style="font-size:0.82rem; color:#94a3b8; background:#1e293b; padding:3px 10px; border-radius:20px;">—</span>
+        </div>
+        <div style="color:#94a3b8; font-size:0.82rem;" id="as-dept-sec">—</div>
+        <hr style="border-color:#334155; margin: 10px 0;">
+        <div style="display:flex; gap: 24px; flex-wrap: wrap; font-size: 0.82rem;">
+          <div><span style="color:#64748b;">Score</span><br><strong id="as-score" style="color:#10b981; font-size:1.05rem;">—</strong></div>
+          <div><span style="color:#64748b;">Percentage</span><br><strong id="as-pct" style="color:#10b981; font-size:1.05rem;">—</strong></div>
+          <div><span style="color:#64748b;">Submitted At</span><br><strong id="as-time" style="color:#f1f5f9; font-size:0.9rem;">—</strong></div>
+        </div>
+      </div>
+
+      <p style="font-size:0.82rem; color:#64748b; margin-bottom: 20px;">If you believe this is an error, please contact your department coordinator.</p>
+      <button type="button" class="btn-primary" id="btn-back-from-submitted" style="max-width: 220px; margin: 0 auto; background: #334155; color: #f1f5f9;">
+        <span>Back to Home</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ==========================================
        VIEW 4: NO TEST NOTICE SCREEN (STUDENT VIEW)
        ========================================== -->
   <div id="no-test-view" class="no-test-container hidden">
@@ -1179,9 +1215,9 @@
   <!-- SheetJS CDN for robust Excel (.xlsx/.xls) and CSV parsing -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <!-- Application Scripts -->
-  <script src="supabase-config.js?v=8.0"></script>
-  <script src="questions.js?v=8.0"></script>
-  <script src="students.js?v=8.0"></script>
-  <script src="app.js?v=8.0"></script>
+  <script src="supabase-config.js?v=9.0"></script>
+  <script src="questions.js?v=9.0"></script>
+  <script src="students.js?v=9.0"></script>
+  <script src="app.js?v=9.0"></script>
 </body>
 </html>
