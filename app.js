@@ -5,7 +5,7 @@
   // State Management
   const state = {
     student: null,
-    totalQuestions: QUESTIONS_BANK.length, // 50
+    totalQuestions: (typeof QUESTIONS_BANK !== 'undefined') ? QUESTIONS_BANK.length : 0,
     currentIndex: 0,
     userAnswers: {},     // { 1: 'B', 2: 'A', ... }
     reviewFlags: {},     // { 1: true, ... }
@@ -24,6 +24,7 @@
   const departmentInput = document.getElementById('department');
   const sectionInput = document.getElementById('section');
   const btnQuickFill = document.getElementById('btn-quick-fill');
+  const portalStatusBadge = document.getElementById('portal-status-badge');
 
   // DOM Elements - Dashboard Header
   const dispAvatar = document.getElementById('disp-avatar');
@@ -33,6 +34,11 @@
   const timerBox = document.getElementById('timer-box');
   const timerDisplay = document.getElementById('timer-display');
   const btnSubmitTest = document.getElementById('btn-submit-test');
+
+  // DOM Elements - No Test Screen & Workspace
+  const noTestScreen = document.getElementById('no-test-screen');
+  const testMainContent = document.getElementById('test-main-content');
+  const btnBackToLogin = document.getElementById('btn-back-to-login');
 
   // DOM Elements - Question Area
   const dispQnoBadge = document.getElementById('disp-qno-badge');
@@ -211,6 +217,17 @@
   // 2. ASSESSMENT ENGINE & TIMER
   // ========================================================
 
+  // Update header status badge on load
+  if (portalStatusBadge) {
+    if (state.totalQuestions === 0) {
+      portalStatusBadge.textContent = '● No Active Assessment';
+      portalStatusBadge.style.color = '#f59e0b';
+    } else {
+      portalStatusBadge.textContent = `● Assessment Active (${state.totalQuestions} Questions)`;
+      portalStatusBadge.style.color = '#10b981';
+    }
+  }
+
   function startAssessment() {
     try {
       // Switch views
@@ -223,7 +240,29 @@
       dispDeptSec.textContent = `${state.student.section || 'Sec'} • ${state.student.department || 'ECE'}`;
       dispAvatar.textContent = (state.student.name && state.student.name.length > 0) ? state.student.name.charAt(0).toUpperCase() : 'S';
 
-      // Build the 1-50 Question Palette Grid
+      // Check if questions are assigned
+      if (state.totalQuestions === 0) {
+        if (testMainContent) testMainContent.classList.add('hidden');
+        if (btnSubmitTest) btnSubmitTest.classList.add('hidden');
+        if (noTestScreen) noTestScreen.classList.remove('hidden');
+        if (timerBox) timerBox.style.display = 'none';
+
+        if (btnBackToLogin) {
+          btnBackToLogin.onclick = () => {
+            dashboardView.classList.add('hidden');
+            loginView.classList.remove('hidden');
+          };
+        }
+        return;
+      }
+
+      // If questions exist, show test workspace
+      if (testMainContent) testMainContent.classList.remove('hidden');
+      if (btnSubmitTest) btnSubmitTest.classList.remove('hidden');
+      if (noTestScreen) noTestScreen.classList.add('hidden');
+      if (timerBox) timerBox.style.display = 'flex';
+
+      // Build the Question Palette Grid
       buildPaletteGrid();
 
       // Render Question 1

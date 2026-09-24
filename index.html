@@ -24,8 +24,8 @@
           <p>Online Examination & Evaluation System</p>
         </div>
       </div>
-      <div style="font-size: 0.8rem; background: #1e293b; padding: 6px 14px; border-radius: 20px; border: 1px solid #334155; color: #10b981; font-weight: 600;">
-        ● Assessment Active (50 Questions)
+      <div id="portal-status-badge" style="font-size: 0.8rem; background: #1e293b; padding: 6px 14px; border-radius: 20px; border: 1px solid #334155; color: #f59e0b; font-weight: 600;">
+        ● No Active Assessment
       </div>
     </header>
 
@@ -150,8 +150,26 @@
       </button>
     </header>
 
+    <!-- No Test Available Screen (Displayed when no active questions exist) -->
+    <div id="no-test-screen" class="no-test-container hidden">
+      <div class="no-test-card">
+        <div class="no-test-icon">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+        </div>
+        <h2>There is no test right now</h2>
+        <p>The examination is currently not active or questions have not been assigned yet.</p>
+        <p class="no-test-subtext">Please check back later or contact your department coordinator / advisor.</p>
+        <button type="button" class="btn-primary" id="btn-back-to-login" style="max-width: 220px; margin: 24px auto 0;">
+          <span>Return to Login</span>
+        </button>
+      </div>
+    </div>
+
     <!-- Test Workspace -->
-    <main class="dashboard-main">
+    <main class="dashboard-main" id="test-main-content">
       <!-- Left / Center: Question Panel -->
       <section class="question-container">
         <!-- Question Meta (Category & Number) -->
