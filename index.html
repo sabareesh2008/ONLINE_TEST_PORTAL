@@ -4,10 +4,252 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Technical Assessment Portal 2026</title>
-  <link rel="stylesheet" href="style.css?v=4.0">
+  <link rel="stylesheet" href="style.css?v=6.0">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    /* Critical Inline Theme Styles for Assessment Results & Answer Key */
+    .result-action-bar {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 12px !important;
+      flex-wrap: wrap !important;
+      margin: 28px 0 32px !important;
+      width: 100% !important;
+    }
+    .btn-portal-primary {
+      background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+      color: #ffffff !important;
+      border: 1px solid #3b82f6 !important;
+      padding: 12px 24px !important;
+      border-radius: 8px !important;
+      font-weight: 600 !important;
+      font-size: 0.92rem !important;
+      cursor: pointer !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 8px !important;
+      transition: all 0.2s ease !important;
+      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4) !important;
+      text-decoration: none !important;
+    }
+    .btn-portal-primary:hover {
+      background: linear-gradient(135deg, #1d4ed8, #1e40af) !important;
+      transform: translateY(-1px) !important;
+      box-shadow: 0 6px 18px rgba(37, 99, 235, 0.5) !important;
+    }
+    .btn-portal-secondary {
+      background: #1e293b !important;
+      color: #93c5fd !important;
+      border: 1.5px solid #3b82f6 !important;
+      padding: 12px 22px !important;
+      border-radius: 8px !important;
+      font-weight: 600 !important;
+      font-size: 0.92rem !important;
+      cursor: pointer !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 8px !important;
+      transition: all 0.2s ease !important;
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.3) !important;
+    }
+    .btn-portal-secondary:hover {
+      background: #27354f !important;
+      color: #ffffff !important;
+      border-color: #60a5fa !important;
+      transform: translateY(-1px) !important;
+    }
+    .btn-portal-neutral {
+      background: #0f172a !important;
+      color: #cbd5e1 !important;
+      border: 1.5px solid #334155 !important;
+      padding: 12px 20px !important;
+      border-radius: 8px !important;
+      font-weight: 600 !important;
+      font-size: 0.92rem !important;
+      cursor: pointer !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 8px !important;
+      transition: all 0.2s ease !important;
+    }
+    .btn-portal-neutral:hover {
+      background: #1e293b !important;
+      color: #f8fafc !important;
+      border-color: #475569 !important;
+      transform: translateY(-1px) !important;
+    }
+    .answer-review-section {
+      width: 100% !important;
+      margin-top: 10px !important;
+      text-align: left !important;
+    }
+    .answer-review-header-box {
+      background: #0f172a !important;
+      border: 1px solid #334155 !important;
+      border-radius: 12px !important;
+      padding: 22px 24px !important;
+      margin-bottom: 24px !important;
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: center !important;
+      text-align: center !important;
+      gap: 16px !important;
+    }
+    .answer-review-title-group h3 {
+      font-size: 1.25rem !important;
+      font-weight: 700 !important;
+      color: #f8fafc !important;
+      margin-bottom: 6px !important;
+    }
+    .answer-review-title-group p {
+      font-size: 0.86rem !important;
+      color: #94a3b8 !important;
+      margin: 0 !important;
+    }
+    .review-filter-bar {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 10px !important;
+      flex-wrap: wrap !important;
+    }
+    .filter-chip {
+      background: #1e293b !important;
+      color: #94a3b8 !important;
+      border: 1px solid #334155 !important;
+      padding: 8px 18px !important;
+      border-radius: 30px !important;
+      font-size: 0.84rem !important;
+      font-weight: 600 !important;
+      cursor: pointer !important;
+      transition: all 0.2s ease !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      gap: 6px !important;
+      outline: none !important;
+    }
+    .filter-chip:hover {
+      background: #27354f !important;
+      color: #f8fafc !important;
+      border-color: #64748b !important;
+    }
+    .filter-chip.active {
+      background: #2563eb !important;
+      color: #ffffff !important;
+      border-color: #3b82f6 !important;
+      box-shadow: 0 2px 10px rgba(37, 99, 235, 0.4) !important;
+    }
+    .filter-chip.chip-wrong {
+      color: #fca5a5 !important;
+      border-color: rgba(239, 68, 68, 0.35) !important;
+      background: rgba(239, 68, 68, 0.08) !important;
+    }
+    .filter-chip.chip-wrong.active {
+      background: #dc2626 !important;
+      color: #ffffff !important;
+      border-color: #ef4444 !important;
+      box-shadow: 0 2px 10px rgba(239, 68, 68, 0.4) !important;
+    }
+    .filter-chip.chip-correct {
+      color: #86efac !important;
+      border-color: rgba(16, 185, 129, 0.35) !important;
+      background: rgba(16, 185, 129, 0.08) !important;
+    }
+    .filter-chip.chip-correct.active {
+      background: #059669 !important;
+      color: #ffffff !important;
+      border-color: #10b981 !important;
+      box-shadow: 0 2px 10px rgba(16, 185, 129, 0.4) !important;
+    }
+    .answer-review-card {
+      background: #0f172a !important;
+      border: 1px solid #334155 !important;
+      border-radius: 12px !important;
+      padding: 22px !important;
+      margin-bottom: 16px !important;
+      text-align: left !important;
+      transition: all 0.2s ease !important;
+    }
+    .answer-review-card.correct { border-left: 5px solid #10b981 !important; }
+    .answer-review-card.wrong { border-left: 5px solid #ef4444 !important; }
+    .answer-review-card.skipped { border-left: 5px solid #f59e0b !important; }
+    .review-card-top {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      margin-bottom: 14px !important;
+      flex-wrap: wrap !important;
+      gap: 10px !important;
+    }
+    .review-prompt {
+      font-size: 1.05rem !important;
+      font-weight: 600 !important;
+      line-height: 1.55 !important;
+      color: #f8fafc !important;
+      margin-bottom: 16px !important;
+    }
+    .ans-comparison-box {
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 10px !important;
+      margin-bottom: 14px !important;
+    }
+    .ans-row {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      padding: 12px 16px !important;
+      border-radius: 8px !important;
+      font-size: 0.92rem !important;
+      flex-wrap: wrap !important;
+      gap: 10px !important;
+    }
+    .ans-row.student-wrong {
+      background: rgba(239, 68, 68, 0.12) !important;
+      border: 1px solid rgba(239, 68, 68, 0.35) !important;
+      color: #fca5a5 !important;
+    }
+    .ans-row.student-correct {
+      background: rgba(16, 185, 129, 0.12) !important;
+      border: 1px solid rgba(16, 185, 129, 0.35) !important;
+      color: #6ee7b7 !important;
+    }
+    .ans-row.student-skipped {
+      background: rgba(245, 158, 11, 0.12) !important;
+      border: 1px solid rgba(245, 158, 11, 0.35) !important;
+      color: #fcd34d !important;
+    }
+    .ans-row.key-correct {
+      background: rgba(16, 185, 129, 0.12) !important;
+      border: 1px solid rgba(16, 185, 129, 0.35) !important;
+      color: #6ee7b7 !important;
+    }
+    .ans-tag {
+      font-weight: 700 !important;
+      font-size: 0.76rem !important;
+      padding: 3px 10px !important;
+      border-radius: 6px !important;
+      text-transform: uppercase !important;
+    }
+    .ans-tag.wrong { background: rgba(239, 68, 68, 0.25) !important; color: #ef4444 !important; }
+    .ans-tag.correct { background: rgba(16, 185, 129, 0.25) !important; color: #10b981 !important; }
+    .ans-tag.skipped { background: rgba(245, 158, 11, 0.25) !important; color: #f59e0b !important; }
+    .review-explanation {
+      background: rgba(30, 41, 59, 0.5) !important;
+      border: 1px solid #334155 !important;
+      border-radius: 8px !important;
+      padding: 12px 16px !important;
+      font-size: 0.86rem !important;
+      color: #94a3b8 !important;
+      line-height: 1.5 !important;
+    }
+  </style>
 </head>
 <body>
 
@@ -641,46 +883,57 @@
         </div>
       </div>
 
-      <!-- Action & Download Buttons -->
-      <div class="result-actions-grid">
-        <button type="button" class="btn-download-key" id="btn-download-pdf">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <!-- Action & Download Buttons Toolbar -->
+      <div class="result-action-bar">
+        <button type="button" class="btn-portal-primary" id="btn-download-pdf">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
             <polyline points="7 10 12 15 17 10"></polyline>
             <line x1="12" y1="15" x2="12" y2="3"></line>
           </svg>
-          <span>📥 Download Answer Key (PDF / Print)</span>
+          <span>Download Answer Key (PDF / Print)</span>
         </button>
 
-        <button type="button" class="btn-secondary" id="btn-download-csv-answers" style="border-color: #3b82f6; color: #93c5fd;">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <button type="button" class="btn-portal-secondary" id="btn-download-csv-answers">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
             <polyline points="14 2 14 8 20 8"></polyline>
             <line x1="16" y1="13" x2="8" y2="13"></line>
             <line x1="16" y1="17" x2="8" y2="17"></line>
             <polyline points="10 9 9 9 8 9"></polyline>
           </svg>
-          <span>📊 Download Answer Key (.CSV)</span>
+          <span>Download Answer Key (.CSV)</span>
         </button>
 
-        <button type="button" class="btn-secondary" id="btn-result-return">
+        <button type="button" class="btn-portal-neutral" id="btn-result-return">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+            <polyline points="16 17 21 12 16 7"></polyline>
+            <line x1="21" y1="12" x2="9" y2="12"></line>
+          </svg>
           <span>Return to Student Portal</span>
         </button>
       </div>
 
       <!-- Detailed Question-by-Question Review Section -->
       <section class="answer-review-section">
-        <div class="answer-review-header">
-          <div>
+        <div class="answer-review-header-box">
+          <div class="answer-review-title-group">
             <h3>Detailed Question-by-Question Answer Key</h3>
-            <p style="font-size: 0.82rem; color: #94a3b8; margin: 0;">Review every question with your answer, correctness, and the official answer key.</p>
+            <p>Review every question with your candidate response, correctness, and the official answer key.</p>
           </div>
 
           <!-- Filter Pills -->
           <div class="review-filter-bar">
-            <button type="button" class="review-filter-btn active" data-filter="all" id="btn-filter-all">All (<span id="count-all-q">0</span>)</button>
-            <button type="button" class="review-filter-btn" data-filter="wrong" id="btn-filter-wrong" style="color: #fca5a5;">Wrong / Incorrect (<span id="count-wrong-q">0</span>)</button>
-            <button type="button" class="review-filter-btn" data-filter="correct" id="btn-filter-correct" style="color: #86efac;">Correct (<span id="count-correct-q">0</span>)</button>
+            <button type="button" class="filter-chip active" data-filter="all" id="btn-filter-all">
+              <span>All Questions (<strong id="count-all-q">0</strong>)</span>
+            </button>
+            <button type="button" class="filter-chip chip-wrong" data-filter="wrong" id="btn-filter-wrong">
+              <span>Wrong / Incorrect (<strong id="count-wrong-q">0</strong>)</span>
+            </button>
+            <button type="button" class="filter-chip chip-correct" data-filter="correct" id="btn-filter-correct">
+              <span>Correct (<strong id="count-correct-q">0</strong>)</span>
+            </button>
           </div>
         </div>
 
@@ -695,9 +948,9 @@
   <!-- SheetJS CDN for robust Excel (.xlsx/.xls) and CSV parsing -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <!-- Application Scripts -->
-  <script src="supabase-config.js?v=4.0"></script>
-  <script src="questions.js?v=4.0"></script>
-  <script src="students.js?v=4.0"></script>
-  <script src="app.js?v=4.0"></script>
+  <script src="supabase-config.js?v=6.0"></script>
+  <script src="questions.js?v=6.0"></script>
+  <script src="students.js?v=6.0"></script>
+  <script src="app.js?v=6.0"></script>
 </body>
 </html>

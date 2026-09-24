@@ -17,6 +17,7 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
   const initialQuestions = (savedQuestions && savedQuestions.length > 0)
     ? savedQuestions
     : (typeof QUESTIONS_BANK !== 'undefined' && Array.isArray(QUESTIONS_BANK) ? [...QUESTIONS_BANK] : []);
+  const savedLastResult = JSON.parse(sessionStorage.getItem('portal_last_result') || localStorage.getItem('portal_last_result') || 'null');
 
   const state = {
     student: null,
@@ -36,7 +37,7 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
     examStartTime: null,
 
     // Result & Evaluation state
-    lastResult: null,
+    lastResult: savedLastResult,
     reviewFilter: 'all'
   };
 
@@ -1129,23 +1130,30 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
       const isSkipped = !studentAns;
       let isCorrect = false;
 
-      let studentDisplay = studentAns;
-      let correctDisplay = q.correctAnswer;
+      // Extract raw correct answer safely with multiple fallbacks
+      const rawCorrect = (q.correctAnswer !== undefined && q.correctAnswer !== null)
+        ? q.correctAnswer
+        : ((q.correct !== undefined && q.correct !== null) ? q.correct : ((q.answer !== undefined && q.answer !== null) ? q.answer : ''));
+      const safeCorrectStr = String(rawCorrect || '').trim();
 
-      if (q.type === 'MCQ') {
-        isCorrect = !isSkipped && (studentAns.toUpperCase() === q.correctAnswer.toUpperCase());
+      let studentDisplay = studentAns;
+      let correctDisplay = safeCorrectStr;
+
+      const qType = (q.type || 'MCQ').toUpperCase();
+      if (qType === 'MCQ') {
+        const studentClean = studentAns.toUpperCase();
+        const correctClean = safeCorrectStr.toUpperCase();
+        isCorrect = !isSkipped && (studentClean === correctClean);
         if (q.options) {
-          const sUpper = studentAns.toUpperCase();
-          const cUpper = q.correctAnswer.toUpperCase();
-          if (q.options[sUpper]) {
-            studentDisplay = `(${sUpper}) ${q.options[sUpper]}`;
+          if (q.options[studentClean]) {
+            studentDisplay = `(${studentClean}) ${q.options[studentClean]}`;
           }
-          if (q.options[cUpper]) {
-            correctDisplay = `(${cUpper}) ${q.options[cUpper]}`;
+          if (q.options[correctClean]) {
+            correctDisplay = `(${correctClean}) ${q.options[correctClean]}`;
           }
         }
       } else {
-        isCorrect = !isSkipped && (studentAns.toLowerCase() === q.correctAnswer.trim().toLowerCase());
+        isCorrect = !isSkipped && (studentAns.toLowerCase() === safeCorrectStr.toLowerCase());
       }
 
       if (isCorrect) {
@@ -1155,20 +1163,20 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
           qno: idx + 1,
           question: q.question,
           studentAns: studentAns || '(No Answer)',
-          correctAnswer: q.correctAnswer,
+          correctAnswer: safeCorrectStr,
           explanation: q.explanation || ''
         });
       }
 
       evaluations.push({
         qno: idx + 1,
-        type: q.type,
+        type: qType,
         category: q.category || 'General',
         question: q.question,
         options: q.options,
         studentAnswer: studentAns,
         studentDisplay: isSkipped ? '(Not Answered)' : studentDisplay,
-        correctAnswer: q.correctAnswer,
+        correctAnswer: safeCorrectStr,
         correctDisplay: correctDisplay,
         isCorrect: isCorrect,
         isSkipped: isSkipped,
@@ -1178,7 +1186,7 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
 
     const totalMarks = totalQ;
     const obtainedMarks = correctCount;
-    const percentage = totalMarks > 0 ? ((obtainedMarks / totalMarks) * 100).toFixed(1) : 0;
+    const percentage = totalMarks > 0 ? ((obtainedMarks / totalMarks) * 100).toFixed(1) : '0.0';
 
     const totalSecondsAllocated = (state.testDuration || 45) * 60;
     const timeSpentSeconds = Math.max(1, totalSecondsAllocated - state.examSecondsLeft);
@@ -1187,10 +1195,10 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
     const timeSpentFormatted = `${timeSpentMins}m ${timeSpentSecs}s`;
 
     const submissionData = {
-      reg_no: state.student.reg_no,
-      student_name: state.student.name,
-      department: state.student.department,
-      section: state.student.section,
+      reg_no: state.student ? state.student.reg_no : 'ANON',
+      student_name: state.student ? state.student.name : 'Candidate',
+      department: state.student ? state.student.department : 'ECE',
+      section: state.student ? state.student.section : 'A',
       total_marks: totalMarks,
       obtained_marks: obtainedMarks,
       percentage: parseFloat(percentage),
@@ -1200,10 +1208,10 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
 
     // Save evaluation result into state
     state.lastResult = {
-      student: { ...state.student },
+      student: state.student ? { ...state.student } : { name: 'Candidate', reg_no: 'N/A', department: 'ECE', section: 'A' },
       testTitle: state.testTitle || 'Technical Assessment 2026',
       totalMarks,
-      obtainedMarks: correctCount,
+      obtainedMarks,
       percentage: parseFloat(percentage),
       timeSpentMins,
       timeSpentSecs,
@@ -1211,6 +1219,14 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
       submittedAt: submissionData.submitted_at,
       evaluations: evaluations
     };
+
+    // Persist to session and local storage
+    try {
+      sessionStorage.setItem('portal_last_result', JSON.stringify(state.lastResult));
+      localStorage.setItem('portal_last_result', JSON.stringify(state.lastResult));
+    } catch (e) {
+      console.warn('Could not persist lastResult:', e);
+    }
 
     // Save to Supabase Cloud if configured
     if (typeof SupabaseAPI !== 'undefined' && SupabaseAPI.isConfigured()) {
@@ -1228,16 +1244,23 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
     state.submissions.unshift(submissionData);
 
     // Populate Results View Summary Banner
-    if (resStudentName) resStudentName.textContent = state.student.name;
-    if (resStudentMeta) resStudentMeta.textContent = `${state.student.department} • Section ${state.student.section} • ${state.student.reg_no}`;
+    if (resStudentName && state.student) resStudentName.textContent = state.student.name;
+    if (resStudentMeta && state.student) resStudentMeta.textContent = `${state.student.department} • Section ${state.student.section} • ${state.student.reg_no}`;
     if (resMarksObtained) resMarksObtained.textContent = `${obtainedMarks} / ${totalMarks}`;
     if (resPercentage) {
       resPercentage.textContent = `${percentage}%`;
-      resPercentage.style.color = percentage >= 50 ? '#10b981' : '#ef4444';
+      resPercentage.style.color = parseFloat(percentage) >= 50 ? '#10b981' : '#ef4444';
     }
     if (resTotalQ) resTotalQ.textContent = totalQ;
     if (resCorrectQ) resCorrectQ.textContent = correctCount;
     if (resTimeSpent) resTimeSpent.textContent = timeSpentFormatted;
+
+    // Reset filter to All
+    state.reviewFilter = 'all';
+    [btnFilterAll, btnFilterWrong, btnFilterCorrect].forEach(b => {
+      if (b) b.classList.remove('active');
+    });
+    if (btnFilterAll) btnFilterAll.classList.add('active');
 
     // Render Detailed Answer Key & Solutions
     renderAnswerReviewCards();
@@ -1249,23 +1272,30 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
   // Setup click listeners for answer review filters & downloads
   function setupResultReview() {
     if (btnDownloadPdf) {
-      btnDownloadPdf.addEventListener('click', downloadAnswerKeyPDF);
+      btnDownloadPdf.addEventListener('click', (e) => {
+        e.preventDefault();
+        downloadAnswerKeyPDF();
+      });
     }
 
     if (btnDownloadCsvAnswers) {
-      btnDownloadCsvAnswers.addEventListener('click', downloadAnswerKeyCSV);
+      btnDownloadCsvAnswers.addEventListener('click', (e) => {
+        e.preventDefault();
+        downloadAnswerKeyCSV();
+      });
     }
 
-    const filterBtns = [
+    const filterChips = [
       { el: btnFilterAll, key: 'all' },
       { el: btnFilterWrong, key: 'wrong' },
       { el: btnFilterCorrect, key: 'correct' }
     ];
 
-    filterBtns.forEach(({ el, key }) => {
+    filterChips.forEach(({ el, key }) => {
       if (el) {
-        el.addEventListener('click', () => {
-          filterBtns.forEach(b => { if (b.el) b.el.classList.remove('active'); });
+        el.addEventListener('click', (e) => {
+          e.preventDefault();
+          filterChips.forEach(b => { if (b.el) b.el.classList.remove('active'); });
           el.classList.add('active');
           state.reviewFilter = key;
           renderAnswerReviewCards();
@@ -1276,6 +1306,10 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
 
   // Render question-by-question review cards on results page
   function renderAnswerReviewCards() {
+    if (!state.lastResult) {
+      const cached = JSON.parse(sessionStorage.getItem('portal_last_result') || localStorage.getItem('portal_last_result') || 'null');
+      if (cached) state.lastResult = cached;
+    }
     if (!state.lastResult || !reviewCardsContainer) return;
 
     const evals = state.lastResult.evaluations || [];
@@ -1296,8 +1330,8 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
 
     if (filtered.length === 0) {
       reviewCardsContainer.innerHTML = `
-        <div style="text-align: center; color: #64748b; padding: 26px; background: #0f172a; border-radius: 8px; border: 1px solid #334155;">
-          No questions found matching this filter.
+        <div style="text-align: center; color: #94a3b8; padding: 32px 20px; background: #0f172a; border-radius: 8px; border: 1px solid #334155; margin-top: 10px;">
+          No questions found matching this filter (${filter}).
         </div>
       `;
       return;
@@ -1334,7 +1368,7 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
           <div class="ans-row key-correct">
             <div>
               <span style="font-size: 0.8rem; color: #6ee7b7; display: block; margin-bottom: 2px;">Official Correct Answer:</span>
-              <strong>${escapeHtml(item.correctDisplay)}</strong>
+              <strong>${escapeHtml(item.correctDisplay || item.correctAnswer)}</strong>
             </div>
             <span class="ans-tag correct">✔ Right Answer</span>
           </div>
@@ -1353,7 +1387,7 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
           <div class="ans-row key-correct">
             <div>
               <span style="font-size: 0.8rem; color: #6ee7b7; display: block; margin-bottom: 2px;">Official Correct Answer:</span>
-              <strong>${escapeHtml(item.correctDisplay)}</strong>
+              <strong>${escapeHtml(item.correctDisplay || item.correctAnswer)}</strong>
             </div>
             <span class="ans-tag correct">✔ Right Answer</span>
           </div>
@@ -1363,11 +1397,11 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
       let optionsPreview = '';
       if (item.type === 'MCQ' && item.options) {
         optionsPreview = `
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; margin: 10px 0; font-size: 0.82rem; color: #94a3b8;">
-            <div style="padding: 6px 10px; background: rgba(30, 41, 59, 0.6); border-radius: 6px;"><strong>A:</strong> ${escapeHtml(item.options.A || '')}</div>
-            <div style="padding: 6px 10px; background: rgba(30, 41, 59, 0.6); border-radius: 6px;"><strong>B:</strong> ${escapeHtml(item.options.B || '')}</div>
-            <div style="padding: 6px 10px; background: rgba(30, 41, 59, 0.6); border-radius: 6px;"><strong>C:</strong> ${escapeHtml(item.options.C || '')}</div>
-            <div style="padding: 6px 10px; background: rgba(30, 41, 59, 0.6); border-radius: 6px;"><strong>D:</strong> ${escapeHtml(item.options.D || '')}</div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; margin: 12px 0; font-size: 0.82rem; color: #cbd5e1;">
+            <div style="padding: 7px 12px; background: rgba(30, 41, 59, 0.7); border-radius: 6px; border: 1px solid rgba(51, 65, 85, 0.6);"><strong style="color:#60a5fa;">A:</strong> ${escapeHtml(item.options.A || '')}</div>
+            <div style="padding: 7px 12px; background: rgba(30, 41, 59, 0.7); border-radius: 6px; border: 1px solid rgba(51, 65, 85, 0.6);"><strong style="color:#60a5fa;">B:</strong> ${escapeHtml(item.options.B || '')}</div>
+            <div style="padding: 7px 12px; background: rgba(30, 41, 59, 0.7); border-radius: 6px; border: 1px solid rgba(51, 65, 85, 0.6);"><strong style="color:#60a5fa;">C:</strong> ${escapeHtml(item.options.C || '')}</div>
+            <div style="padding: 7px 12px; background: rgba(30, 41, 59, 0.7); border-radius: 6px; border: 1px solid rgba(51, 65, 85, 0.6);"><strong style="color:#60a5fa;">D:</strong> ${escapeHtml(item.options.D || '')}</div>
           </div>
         `;
       }
@@ -1383,8 +1417,8 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
           <div class="review-card-top">
             <div style="display: flex; align-items: center; gap: 10px;">
               <span class="q-badge">Question ${item.qno}</span>
-              <span class="badge-sec">${escapeHtml(item.category)}</span>
-              <span class="${item.type === 'MCQ' ? 'badge-mcq' : 'badge-fib'}">${item.type}</span>
+              <span class="badge-sec">${escapeHtml(item.category || 'General')}</span>
+              <span class="${item.type === 'MCQ' ? 'badge-mcq' : 'badge-fib'}">${item.type || 'MCQ'}</span>
             </div>
             ${statusBadge}
           </div>
@@ -1403,45 +1437,47 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
     }).join('');
   }
 
-  // Download Answer Key Report as a Printable PDF Document
+  // Download Answer Key Report as a Printable PDF Document (Popup-Blocker Immune)
   function downloadAnswerKeyPDF() {
     if (!state.lastResult) {
-      alert('No assessment result found to download.');
-      return;
+      const cached = JSON.parse(sessionStorage.getItem('portal_last_result') || localStorage.getItem('portal_last_result') || 'null');
+      if (cached) {
+        state.lastResult = cached;
+      } else {
+        alert('No assessment result found to download. Please complete the assessment first.');
+        return;
+      }
     }
 
     const { student, testTitle, totalMarks, obtainedMarks, percentage, timeSpentFormatted, submittedAt, evaluations } = state.lastResult;
+    const safeRegNo = (student && student.reg_no) ? student.reg_no : 'Candidate';
+    const safeName = (student && student.name) ? student.name.replace(/\s+/g, '_') : 'Student';
 
-    const correctCount = evaluations.filter(e => e.isCorrect).length;
-    const wrongCount = evaluations.filter(e => !e.isCorrect && !e.isSkipped).length;
-    const skippedCount = evaluations.filter(e => e.isSkipped).length;
+    const evals = evaluations || [];
+    const correctCount = evals.filter(e => e.isCorrect).length;
+    const wrongCount = evals.filter(e => !e.isCorrect && !e.isSkipped).length;
+    const skippedCount = evals.filter(e => e.isSkipped).length;
 
-    const printWin = window.open('', '_blank');
-    if (!printWin) {
-      alert('Popup blocker prevented opening the print report window. Please allow popups for this site.');
-      return;
-    }
-
-    const htmlContent = `
-<!DOCTYPE html>
+    const htmlContent = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Answer Key & Evaluation Report - ${escapeHtml(student.reg_no)}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Answer Key & Evaluation Report - ${escapeHtml(safeRegNo)}</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
       color: #0f172a;
       background: #ffffff;
-      padding: 30px;
+      padding: 28px;
       font-size: 13px;
       line-height: 1.5;
     }
     .header-box {
-      border-bottom: 3px double #0284c7;
-      padding-bottom: 14px;
-      margin-bottom: 20px;
+      border-bottom: 2px solid #0284c7;
+      padding-bottom: 12px;
+      margin-bottom: 18px;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -1454,7 +1490,7 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
       letter-spacing: 0.5px;
     }
     .inst-sub {
-      font-size: 13px;
+      font-size: 12px;
       color: #475569;
       margin-top: 2px;
     }
@@ -1470,26 +1506,26 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
     .meta-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
-      gap: 10px;
+      gap: 8px 16px;
       background: #f8fafc;
       border: 1px solid #cbd5e1;
       border-radius: 6px;
-      padding: 14px;
-      margin-bottom: 20px;
+      padding: 12px 16px;
+      margin-bottom: 18px;
     }
-    .meta-row { font-size: 13px; }
+    .meta-row { font-size: 12.5px; }
     .meta-row strong { color: #334155; }
     .score-summary {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 12px;
-      margin-bottom: 24px;
+      gap: 10px;
+      margin-bottom: 22px;
     }
     .score-tile {
       background: #f1f5f9;
       border: 1px solid #cbd5e1;
       border-radius: 6px;
-      padding: 12px;
+      padding: 10px;
       text-align: center;
     }
     .score-tile.main {
@@ -1497,36 +1533,38 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
       border-color: #38bdf8;
     }
     .score-tile .val {
-      font-size: 20px;
+      font-size: 19px;
       font-weight: 800;
       color: #0f172a;
     }
     .score-tile.main .val { color: #0284c7; }
     .score-tile .lbl {
-      font-size: 11px;
+      font-size: 10.5px;
       text-transform: uppercase;
       color: #64748b;
       font-weight: 700;
       margin-top: 2px;
     }
     .section-heading {
-      font-size: 15px;
+      font-size: 14px;
       font-weight: 700;
       color: #0f172a;
-      margin-bottom: 14px;
+      margin-bottom: 12px;
       padding-bottom: 6px;
       border-bottom: 1px solid #e2e8f0;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
     .q-card {
       border: 1px solid #cbd5e1;
       border-radius: 6px;
-      padding: 14px;
-      margin-bottom: 14px;
+      padding: 12px 14px;
+      margin-bottom: 12px;
       page-break-inside: avoid;
     }
     .q-card.correct { border-left: 5px solid #10b981; }
-    .q-card.wrong { border-left: 5px solid #ef4444; background: #fffaf0; }
-    .q-card.skipped { border-left: 5px solid #f59e0b; }
+    .q-card.wrong { border-left: 5px solid #ef4444; background: #fffbfb; }
+    .q-card.skipped { border-left: 5px solid #f59e0b; background: #fffdf5; }
     .q-header {
       display: flex;
       justify-content: space-between;
@@ -1535,7 +1573,7 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
     }
     .q-num {
       font-weight: 700;
-      font-size: 13px;
+      font-size: 12.5px;
       color: #1e293b;
     }
     .badge {
@@ -1549,7 +1587,7 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
     .badge.wrong { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
     .badge.skipped { background: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
     .q-prompt {
-      font-size: 13.5px;
+      font-size: 13px;
       font-weight: 600;
       margin-bottom: 10px;
       color: #1e293b;
@@ -1558,7 +1596,7 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
       margin-bottom: 6px;
       padding: 8px 12px;
       border-radius: 4px;
-      font-size: 12.5px;
+      font-size: 12px;
     }
     .ans-box.wrong { background: #fee2e2; border: 1px solid #fca5a5; color: #991b1b; }
     .ans-box.correct { background: #dcfce7; border: 1px solid #86efac; color: #166534; }
@@ -1569,11 +1607,11 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
       background: #f8fafc;
       border: 1px solid #e2e8f0;
       border-radius: 4px;
-      font-size: 12px;
+      font-size: 11.5px;
       color: #475569;
     }
     .print-actions {
-      margin-bottom: 20px;
+      margin-bottom: 18px;
       display: flex;
       gap: 10px;
     }
@@ -1581,15 +1619,16 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
       background: #0284c7;
       color: white;
       border: none;
-      padding: 10px 20px;
+      padding: 8px 18px;
       border-radius: 4px;
       font-weight: 700;
       cursor: pointer;
+      font-size: 13px;
     }
     @media print {
       .print-actions { display: none !important; }
       body { padding: 0; }
-      @page { margin: 15mm; }
+      @page { margin: 12mm; }
     }
   </style>
 </head>
@@ -1601,18 +1640,18 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
   <div class="header-box">
     <div>
       <div class="inst-title">Technical Assessment Portal</div>
-      <div class="inst-sub">Department of Electronics & Communication Engineering</div>
+      <div class="inst-sub">Institutional Evaluation & Official Solution Key</div>
     </div>
-    <div class="doc-badge">Official Solution Sheet</div>
+    <div class="doc-badge">Answer Key Report</div>
   </div>
 
   <div class="meta-grid">
-    <div class="meta-row"><strong>Candidate Name:</strong> ${escapeHtml(student.name)}</div>
-    <div class="meta-row"><strong>Register Number:</strong> ${escapeHtml(student.reg_no)}</div>
-    <div class="meta-row"><strong>Department & Section:</strong> ${escapeHtml(student.department)} - Section ${escapeHtml(student.section)}</div>
-    <div class="meta-row"><strong>Examination:</strong> ${escapeHtml(testTitle)}</div>
-    <div class="meta-row"><strong>Time Taken:</strong> ${escapeHtml(timeSpentFormatted)}</div>
-    <div class="meta-row"><strong>Date Submitted:</strong> ${new Date(submittedAt).toLocaleString()}</div>
+    <div class="meta-row"><strong>Candidate:</strong> ${escapeHtml(student ? student.name : '')}</div>
+    <div class="meta-row"><strong>Register Number:</strong> ${escapeHtml(safeRegNo)}</div>
+    <div class="meta-row"><strong>Department & Section:</strong> ${escapeHtml(student ? student.department : '')} - Section ${escapeHtml(student ? student.section : '')}</div>
+    <div class="meta-row"><strong>Examination:</strong> ${escapeHtml(testTitle || 'Technical Assessment 2026')}</div>
+    <div class="meta-row"><strong>Time Taken:</strong> ${escapeHtml(timeSpentFormatted || 'N/A')}</div>
+    <div class="meta-row"><strong>Date Submitted:</strong> ${new Date(submittedAt || Date.now()).toLocaleString()}</div>
   </div>
 
   <div class="score-summary">
@@ -1634,16 +1673,16 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
     </div>
   </div>
 
-  <div class="section-heading">Detailed Question-by-Question Evaluation & Answer Key</div>
+  <div class="section-heading">Question-by-Question Evaluation</div>
 
-  ${evaluations.map(item => {
+  ${evals.map(item => {
     let cardClass = 'q-card ';
     let badge = '';
     let answerBlocks = '';
 
     if (item.isCorrect) {
       cardClass += 'correct';
-      badge = '<span class="badge correct">✔ Correct</span>';
+      badge = '<span class="badge correct">✔ Correct (+1)</span>';
       answerBlocks = `
         <div class="ans-box correct">
           <strong>Your Answer:</strong> ${escapeHtml(item.studentDisplay)} (Correct)
@@ -1651,24 +1690,24 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
       `;
     } else if (item.isSkipped) {
       cardClass += 'skipped';
-      badge = '<span class="badge skipped">⚠ Not Answered</span>';
+      badge = '<span class="badge skipped">⚠ Not Answered (0)</span>';
       answerBlocks = `
         <div class="ans-box skipped">
           <strong>Your Answer:</strong> (Candidate Skipped This Question)
         </div>
         <div class="ans-box correct">
-          <strong>Correct Answer:</strong> ${escapeHtml(item.correctDisplay)}
+          <strong>Official Correct Answer:</strong> ${escapeHtml(item.correctDisplay || item.correctAnswer)}
         </div>
       `;
     } else {
       cardClass += 'wrong';
-      badge = '<span class="badge wrong">✘ Wrong / Incorrect</span>';
+      badge = '<span class="badge wrong">✘ Wrong / Incorrect (0)</span>';
       answerBlocks = `
         <div class="ans-box wrong">
           <strong>Your Answer:</strong> ${escapeHtml(item.studentDisplay)} (Incorrect)
         </div>
         <div class="ans-box correct">
-          <strong>Correct Answer:</strong> ${escapeHtml(item.correctDisplay)}
+          <strong>Official Correct Answer:</strong> ${escapeHtml(item.correctDisplay || item.correctAnswer)}
         </div>
       `;
     }
@@ -1680,7 +1719,7 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
     return `
       <div class="${cardClass}">
         <div class="q-header">
-          <span class="q-num">Q${item.qno}. [${escapeHtml(item.category)}] (${item.type})</span>
+          <span class="q-num">Q${item.qno}. [${escapeHtml(item.category || 'General')}] (${item.type || 'MCQ'})</span>
           ${badge}
         </div>
         <div class="q-prompt">${escapeHtml(item.question)}</div>
@@ -1691,27 +1730,69 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
   }).join('')}
 
 </body>
-</html>
-    `;
+</html>`;
 
-    printWin.document.open();
-    printWin.document.write(htmlContent);
-    printWin.document.close();
-
+    // 1. Download as standalone HTML file (immune to popup blocker)
+    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8;' });
+    const fileUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = fileUrl;
+    link.download = `Answer_Key_${safeRegNo}_${safeName}.html`;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
     setTimeout(() => {
-      printWin.focus();
-      printWin.print();
-    }, 500);
+      document.body.removeChild(link);
+      URL.revokeObjectURL(fileUrl);
+    }, 200);
+
+    // 2. Also trigger seamless in-page print dialog via hidden iframe (immune to popup blocker)
+    try {
+      let printFrame = document.getElementById('answer-key-print-frame');
+      if (!printFrame) {
+        printFrame = document.createElement('iframe');
+        printFrame.id = 'answer-key-print-frame';
+        printFrame.style.position = 'fixed';
+        printFrame.style.right = '0';
+        printFrame.style.bottom = '0';
+        printFrame.style.width = '0';
+        printFrame.style.height = '0';
+        printFrame.style.border = '0';
+        printFrame.style.visibility = 'hidden';
+        document.body.appendChild(printFrame);
+      }
+      const frameDoc = printFrame.contentWindow.document;
+      frameDoc.open();
+      frameDoc.write(htmlContent);
+      frameDoc.close();
+      setTimeout(() => {
+        try {
+          printFrame.contentWindow.focus();
+          printFrame.contentWindow.print();
+        } catch (printErr) {
+          console.log('iframe print notice:', printErr);
+        }
+      }, 350);
+    } catch (e) {
+      console.log('Print frame initialized:', e);
+    }
   }
 
-  // Download Answer Key Report as CSV file
+  // Download Answer Key Report as CSV file with UTF-8 BOM
   function downloadAnswerKeyCSV() {
     if (!state.lastResult) {
-      alert('No assessment result found to download.');
-      return;
+      const cached = JSON.parse(sessionStorage.getItem('portal_last_result') || localStorage.getItem('portal_last_result') || 'null');
+      if (cached) {
+        state.lastResult = cached;
+      } else {
+        alert('No assessment result found to download. Please complete the assessment first.');
+        return;
+      }
     }
 
     const { student, testTitle, totalMarks, obtainedMarks, percentage, timeSpentFormatted, submittedAt, evaluations } = state.lastResult;
+    const safeRegNo = (student && student.reg_no) ? student.reg_no : 'Candidate';
+    const safeName = (student && student.name) ? student.name.replace(/\s+/g, '_') : 'Student';
 
     function csvCell(val) {
       if (val === null || val === undefined) return '""';
@@ -1721,55 +1802,57 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
 
     const rows = [];
     rows.push([csvCell('TECHNICAL ASSESSMENT - CANDIDATE ANSWER KEY & PERFORMANCE REPORT')]);
-    rows.push([csvCell('Candidate Name:'), csvCell(student.name)]);
-    rows.push([csvCell('Register Number:'), csvCell(student.reg_no)]);
-    rows.push([csvCell('Department:'), csvCell(student.department)]);
-    rows.push([csvCell('Section:'), csvCell(student.section)]);
-    rows.push([csvCell('Examination Title:'), csvCell(testTitle)]);
-    rows.push([csvCell('Obtained Marks:'), csvCell(`${obtainedMarks} / ${totalMarks}`)]);
+    rows.push([csvCell('Candidate Name:'), csvCell(student ? student.name : '')]);
+    rows.push([csvCell('Register Number:'), csvCell(student ? student.reg_no : '')]);
+    rows.push([csvCell('Department:'), csvCell(student ? student.department : '')]);
+    rows.push([csvCell('Section:'), csvCell(student ? student.section : '')]);
+    rows.push([csvCell('Examination Title:'), csvCell(testTitle || 'Technical Assessment 2026')]);
+    rows.push([csvCell('Score / Total Marks:'), csvCell(`${obtainedMarks} / ${totalMarks}`)]);
     rows.push([csvCell('Percentage:'), csvCell(`${percentage}%`)]);
-    rows.push([csvCell('Time Taken:'), csvCell(timeSpentFormatted)]);
-    rows.push([csvCell('Submitted At:'), csvCell(new Date(submittedAt).toLocaleString())]);
+    rows.push([csvCell('Time Taken:'), csvCell(timeSpentFormatted || 'N/A')]);
+    rows.push([csvCell('Submission Date & Time:'), csvCell(new Date(submittedAt || Date.now()).toLocaleString())]);
     rows.push([]);
     rows.push([
-      csvCell('Question No'),
+      csvCell('#'),
       csvCell('Category'),
-      csvCell('Type'),
+      csvCell('Question Type'),
       csvCell('Question Prompt'),
-      csvCell('Your Answer'),
-      csvCell('Evaluation Status'),
-      csvCell('Correct Answer'),
-      csvCell('Explanation')
+      csvCell('Candidate Response'),
+      csvCell('Result Status'),
+      csvCell('Official Correct Answer'),
+      csvCell('Explanation / Rationale')
     ]);
 
-    evaluations.forEach(item => {
-      let statusStr = 'CORRECT';
-      if (item.isSkipped) statusStr = 'NOT ANSWERED';
-      else if (!item.isCorrect) statusStr = 'WRONG / INCORRECT';
+    (evaluations || []).forEach(item => {
+      let statusStr = 'CORRECT (+1 Mark)';
+      if (item.isSkipped) statusStr = 'NOT ANSWERED (0 Marks)';
+      else if (!item.isCorrect) statusStr = 'WRONG / INCORRECT (0 Marks)';
 
       rows.push([
         csvCell(item.qno),
-        csvCell(item.category),
-        csvCell(item.type),
-        csvCell(item.question),
-        csvCell(item.studentDisplay),
+        csvCell(item.category || 'General'),
+        csvCell(item.type || 'MCQ'),
+        csvCell(item.question || ''),
+        csvCell(item.studentDisplay || '(Not Answered)'),
         csvCell(statusStr),
-        csvCell(item.correctDisplay),
-        csvCell(item.explanation)
+        csvCell(item.correctDisplay || item.correctAnswer || ''),
+        csvCell(item.explanation || '')
       ]);
     });
 
     const csvContent = rows.map(r => r.join(',')).join('\r\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `Answer_Key_${student.reg_no}_${student.name.replace(/\s+/g, '_')}.csv`);
-    link.style.visibility = 'hidden';
+    link.href = url;
+    link.download = `Answer_Key_${safeRegNo}_${safeName}.csv`;
+    link.style.display = 'none';
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    setTimeout(() => {
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }, 200);
   }
 
   // ========================================================
