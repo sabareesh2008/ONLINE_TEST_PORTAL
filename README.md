@@ -1,28 +1,56 @@
 # Online Technical Assessment Portal 2026 🚀
 
-A modern, responsive, high-performance web-based technical assessment platform built with pure **HTML5, CSS3, and Vanilla JavaScript**, backed by **Supabase PostgreSQL**. Designed for college departments and students with zero build step requirements—ready for instant deployment on **GitHub Pages**.
+A modern, responsive, high-performance web-based technical assessment platform built with pure **HTML5, CSS3, and Vanilla JavaScript**, backed by **Supabase PostgreSQL**. Designed for college departments and faculty with zero build step requirements—ready for instant deployment on **GitHub Pages**.
 
 ---
 
 ## 🌟 Key Features
 
-- **Official Student Authentication**:
-  - Validates student Register Numbers against the department roster (372 ECE students across Sections A, B, C, D, E, F).
-  - **Instant Auto-Fill**: Auto-detects and populates candidate name, department, and section upon typing register number.
-  - **Single Attempt Lockout**: Duplicate submissions are strictly blocked.
-- **Live 50-Question Examination Engine**:
-  - Pre-loaded with 50 curated technical MCQs across C, Data Structures, Algorithms, SQL, Operating Systems, Computer Networks, Python, and Java.
-  - Interactive option selection (A, B, C, D).
-  - Navigation controls: *Previous*, *Clear Choice*, *Mark for Review*, and *Save & Next*.
-  - **1 to 50 Question Palette**: Color-coded tracking for Answered (Green), Unanswered (Gray), and Review (Purple).
-- **Floating Countdown Timer (45:00)**:
-  - Real-time countdown clock.
-  - Visual status alerts (Amber below 10 mins, pulsing red below 2 mins).
-  - **Auto-Submission**: Automatically submits and locks the test when the clock reaches `00:00`.
-- **Supabase Cloud Backend**:
-  - `students`: Official registered candidate roster.
-  - `submissions`: Total marks, obtained marks, percentage, and time taken.
-  - `submission_incorrect_answers`: Stores question-level error breakdowns for class advisor analytics.
+### 🎓 Dual-Role Portal Architecture
+1. **Student Portal**:
+   - Validates student Register Numbers against the department roster (372 ECE students across Sections A through F).
+   - **Instant Auto-Fill**: Auto-detects and populates candidate name, department, and section upon typing register number.
+   - **Assessment Status Enforcement**: If test is unpublished or questions are not yet assigned, candidates see a clean *"There is no test right now"* notice.
+   - **Interactive Examination Workspace**:
+     - Supports **Multiple Choice Questions (MCQ)** with interactive option cards (A, B, C, D).
+     - Supports **Fill in the Blanks (FIB)** with text inputs and auto-evaluation.
+     - Question palette with real-time status indicators (Answered, Unanswered, Marked for Review, Current).
+     - Real-time countdown timer with automated submission at `00:00`.
+   - **Instant Evaluation & Results Screen**:
+     - Calculates score, percentage, correct answer breakdown, and time spent.
+     - Saves submission directly to Supabase cloud and local storage.
+
+2. **Faculty & Admin Command Center (`admin` / `admin123`)**:
+   - **Assessment Publishing Controller**: Instant toggle to Publish or Unpublish the test with custom test title and duration.
+   - **Question Bank Manager (Excel & CSV)**:
+     - Drag-and-drop or file upload supporting `.xlsx`, `.xls`, and `.csv`.
+     - Supports both **MCQ** (Question, Options A-D, Correct Answer) and **Fill in the Blanks** (Question with blank, Correct Answer).
+     - **1-Click Sample Question Template Download (`.CSV`)** directly in the dashboard for faculty reference.
+     - Live preview table with type badges, options display, correct answers, and individual question deletion.
+   - **Enroll New Student**: Add students directly into the Supabase database and local roster.
+   - **Official Student Directory**: Filterable by section (A-F) with real-time candidate search.
+   - **Section Completion Analytics & Live Submissions Tracker**: Real-time completion progress bars for each section (A-F) and submissions log.
+
+---
+
+## 📋 Question File Format (Excel / CSV)
+
+Faculty can upload questions using either `.xlsx` / `.xls` (Excel) or `.csv` (Comma Separated Values).
+
+### Columns Header Specification:
+| Column | Description | MCQ | Fill in the Blanks (FIB) |
+|---|---|---|---|
+| `Type` | Question format | `MCQ` | `FIB` |
+| `Category` | Subject / Topic | e.g. Data Structures | e.g. Networks |
+| `Question` | Question prompt | Problem statement | Sentence with `_______` blank |
+| `Option A` | First choice | Required | Leave empty |
+| `Option B` | Second choice | Required | Leave empty |
+| `Option C` | Third choice | Optional/Required | Leave empty |
+| `Option D` | Fourth choice | Optional/Required | Leave empty |
+| `Correct Answer` | Answer key | Letter (`A`, `B`, `C`, or `D`) or option text | Exact word/phrase |
+| `Explanation` | Solution rationale | Optional | Optional |
+
+> 💡 **Sample Template**: You can download `sample_question_template.csv` directly from the Admin Dashboard -> *Question Manager* tab.
 
 ---
 
@@ -30,22 +58,23 @@ A modern, responsive, high-performance web-based technical assessment platform b
 
 ```
 ONLINE_TEST_PORTAL/
-├── index.html            # Main Portal (Student Login & Test Dashboard)
-├── style.css             # Modern Dark Glassmorphism Portal Theme
-├── app.js                # Core Assessment Engine & Timer Logic
-├── questions.js          # 50 Curated Technical Questions & Answer Keys
-├── students.js           # Client-side student roster
-├── students.csv          # Official ECE student dataset (372 students)
-├── supabase-config.js    # Supabase connection credentials
-├── supabase_setup.sql    # 1-Click Database Setup Script for Supabase
-└── README.md             # Project Documentation
+├── index.html                 # Main Portal (Student Login, Admin Dashboard, Exam & Result Views)
+├── style.css                  # Professional Slate Glassmorphism Institutional Theme
+├── app.js                     # Core Application Logic, Excel/CSV Parser, Exam Runner & Timer
+├── questions.js               # Questions bank definition
+├── sample_question_template.csv # Sample CSV Template for Faculty Reference
+├── students.js                # Official Client-side Student Dataset (372 ECE Candidates)
+├── students.csv               # Raw Student Dataset across Sections A-F
+├── supabase-config.js         # Direct REST Supabase API Integration
+├── supabase_setup.sql         # 1-Click Database Setup Script for Supabase
+└── README.md                  # Project Documentation
 ```
 
 ---
 
 ## 🚀 How to Run Locally
 
-Simply double-click `index.html` to open it in any browser (Chrome, Edge, Firefox).
+Double-click `index.html` to open in any modern browser (Chrome, Edge, Firefox, Safari).
 
 Or run a local server:
 ```powershell
@@ -55,24 +84,9 @@ Then visit `http://localhost:8000`.
 
 ---
 
-## 🌐 Deploy to GitHub Pages (1 Click)
+## 🌐 Deploy to GitHub Pages
 
-1. In this repository, click **Settings**.
-2. On the left menu, select **Pages**.
+1. In your GitHub repository, open **Settings**.
+2. Select **Pages** from the sidebar.
 3. Under **Branch**, select `main` / `root` and click **Save**.
-4. Your exam portal will be live worldwide in seconds!
-
----
-
-## 🗄️ Setting Up the Supabase Backend
-
-1. Open your [Supabase Dashboard](https://supabase.com/dashboard).
-2. Go to **SQL Editor** -> Paste the code from `supabase_setup.sql` -> Click **Run**.
-3. Copy your **Project URL** and **Anon Public Key** from *Project Settings > API*.
-4. Paste them into `supabase-config.js`:
-   ```javascript
-   const SUPABASE_CONFIG = {
-     url: "https://your-project.supabase.co",
-     anonKey: "your-anon-public-key"
-   };
-   ```
+4. The test portal is instantly live!

@@ -208,6 +208,10 @@
         <div class="stat-value" id="metric-submissions-count" style="color: #10b981;">0</div>
       </div>
       <div class="stat-card">
+        <div class="stat-title">Assigned Questions</div>
+        <div class="stat-value" id="metric-questions-count" style="color: #60a5fa;">0</div>
+      </div>
+      <div class="stat-card">
         <div class="stat-title">Sections Enrolled</div>
         <div class="stat-value">6 (A-F)</div>
       </div>
@@ -217,6 +221,9 @@
     <div class="admin-tabs">
       <button type="button" class="admin-tab active" data-target="admin-tab-publish">
         📢 Publish & Control Test
+      </button>
+      <button type="button" class="admin-tab" data-target="admin-tab-questions">
+        📝 Question Manager
       </button>
       <button type="button" class="admin-tab" data-target="admin-tab-add-student">
         ➕ Add New Student
@@ -266,7 +273,82 @@
       </div>
     </div>
 
-    <!-- TAB 2: ADD NEW STUDENT -->
+    <!-- TAB 2: QUESTION MANAGER (CSV / EXCEL UPLOAD) -->
+    <div id="admin-tab-questions" class="admin-tab-content hidden">
+      <div class="admin-panel-card">
+        <div class="table-toolbar">
+          <div>
+            <h3>Assessment Question Bank Manager</h3>
+            <p class="card-desc" style="margin-bottom: 0;">Upload questions via Excel (.xlsx, .xls) or CSV format supporting MCQ and Fill in the Blanks.</p>
+          </div>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button type="button" class="btn-secondary" id="btn-download-template" style="border-color: #3b82f6; color: #93c5fd;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+              <span>Download Sample Template (.CSV)</span>
+            </button>
+            <button type="button" class="btn-secondary" id="btn-clear-questions" style="border-color: #ef4444; color: #fca5a5;">
+              <span>Clear All Questions</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Dropzone Area -->
+        <div class="upload-dropzone" id="question-dropzone">
+          <input type="file" id="question-file-input" accept=".csv, .xlsx, .xls" style="display: none;">
+          <div class="upload-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="17 8 12 3 7 8"></polyline>
+              <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+          </div>
+          <h4 style="margin-bottom: 6px; font-size: 1.05rem;">Click or Drag & Drop Excel (.xlsx) or CSV file here</h4>
+          <p style="color: var(--text-muted); font-size: 0.85rem; max-width: 580px; margin: 0 auto 12px;">
+            Supports both <strong>MCQ</strong> (Question, Options A-D, Correct Answer A/B/C/D) and <strong>Fill in the Blanks</strong> (Question with blank, Correct Answer).
+          </p>
+          <button type="button" class="btn-primary" id="btn-browse-file" style="max-width: 180px; margin: 0 auto; padding: 8px 16px; font-size: 0.88rem;">
+            <span>Browse File</span>
+          </button>
+        </div>
+
+        <div id="question-upload-alert" class="alert"></div>
+
+        <!-- Question Preview Table -->
+        <div style="margin-top: 24px;">
+          <div class="table-toolbar">
+            <h4 style="font-size: 1rem;">Active Questions in Test (<span id="assigned-q-count">0</span>)</h4>
+            <span style="font-size: 0.8rem; color: #94a3b8;">Questions will be automatically presented to students when test is published.</span>
+          </div>
+
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th style="width: 50px;">#</th>
+                  <th style="width: 70px;">Type</th>
+                  <th style="width: 130px;">Category</th>
+                  <th>Question</th>
+                  <th style="width: 200px;">Options / Blank Info</th>
+                  <th style="width: 110px;">Correct Answer</th>
+                  <th style="width: 60px;">Action</th>
+                </tr>
+              </thead>
+              <tbody id="questions-preview-tbody">
+                <tr>
+                  <td colspan="7" style="text-align: center; color: #64748b; padding: 24px;">No questions loaded yet. Upload an Excel or CSV file above or download the sample template.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: ADD NEW STUDENT -->
     <div id="admin-tab-add-student" class="admin-tab-content hidden">
       <div class="admin-panel-card" style="max-width: 680px;">
         <h3>Enroll a New Student</h3>
@@ -422,6 +504,151 @@
     </div>
   </div>
 
+  <!-- ==========================================
+       VIEW 5: STUDENT EXAMINATION WORKSPACE
+       ========================================== -->
+  <div id="exam-view" class="hidden" style="width: 100%; min-height: 100vh; display: flex; flex-direction: column;">
+    <!-- Top Candidate & Timer Header -->
+    <header class="dashboard-header">
+      <div class="candidate-badge">
+        <div class="candidate-avatar" id="exam-avatar">S</div>
+        <div class="candidate-info">
+          <h4 id="exam-student-name">Student Name</h4>
+          <p id="exam-student-meta">ECE • Section A • 922525106001</p>
+        </div>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <div class="timer-pill" id="exam-timer-pill">
+          <span class="timer-label">Time Remaining</span>
+          <span class="timer-clock" id="exam-timer-display">45:00</span>
+        </div>
+        <button type="button" class="btn-submit-exam" id="btn-submit-exam">
+          <span>Submit Test</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Workspace: Question Area + Palette -->
+    <main class="exam-workspace">
+      <!-- Left Question Panel -->
+      <section class="question-panel">
+        <div class="q-meta-bar">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span class="q-badge" id="exam-q-index">Question 1 of 10</span>
+            <span class="badge-sec" id="exam-q-category">General</span>
+            <span id="exam-q-type-badge" class="badge-mcq">MCQ</span>
+          </div>
+          <button type="button" class="btn-secondary" id="btn-mark-review" style="padding: 6px 14px; font-size: 0.8rem;">
+            <span>🔖 Mark for Review</span>
+          </button>
+        </div>
+
+        <div class="question-prompt" id="exam-question-text">
+          Loading question prompt...
+        </div>
+
+        <!-- MCQ Options Container -->
+        <div id="exam-mcq-container" class="mcq-options-list">
+          <!-- Dynamically populated MCQ Option Cards -->
+        </div>
+
+        <!-- Fill In The Blanks Container -->
+        <div id="exam-fib-container" class="fib-box hidden">
+          <label for="exam-fib-input">Type your exact answer in the blank below:</label>
+          <input type="text" id="exam-fib-input" class="fib-input" placeholder="Type answer here..." autocomplete="off">
+        </div>
+
+        <!-- Navigation Controls Footer -->
+        <div class="q-control-footer">
+          <div style="display: flex; gap: 10px;">
+            <button type="button" class="btn-secondary" id="btn-prev-q">
+              <span>← Previous</span>
+            </button>
+            <button type="button" class="btn-secondary" id="btn-clear-q">
+              <span>Clear Response</span>
+            </button>
+          </div>
+          <button type="button" class="btn-primary" id="btn-next-q">
+            <span>Next Question →</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Right Palette Sidebar -->
+      <aside class="palette-container">
+        <div class="palette-stats">
+          <div class="stat-chip"><div class="stat-dot answered"></div><span id="pal-count-answered">0 Answered</span></div>
+          <div class="stat-chip"><div class="stat-dot unanswered"></div><span id="pal-count-unanswered">0 Unanswered</span></div>
+          <div class="stat-chip"><div class="stat-dot review"></div><span id="pal-count-review">0 In Review</span></div>
+          <div class="stat-chip"><span id="pal-count-total" style="font-weight: 700; color: #93c5fd;">Total: 0</span></div>
+        </div>
+
+        <h4 style="font-size: 0.82rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 12px; letter-spacing: 0.5px;">Question Navigator</h4>
+        <div class="palette-grid" id="exam-palette-grid">
+          <!-- Dynamically populated 1 to N buttons -->
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <!-- ==========================================
+       VIEW 6: STUDENT TEST SUBMISSION RESULTS
+       ========================================== -->
+  <div id="result-view" class="result-container hidden">
+    <div class="result-card">
+      <div class="result-badge-icon">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+      </div>
+
+      <h2 style="font-size: 1.5rem; margin-bottom: 8px;">Assessment Completed!</h2>
+      <p style="color: var(--text-muted); font-size: 0.88rem;">Your test has been successfully evaluated and securely saved to the database.</p>
+
+      <div style="margin: 18px 0; padding: 12px; background: #0f172a; border-radius: 8px; border: 1px solid #334155;">
+        <div style="font-weight: 700; color: #f8fafc;" id="res-student-name">Student Name</div>
+        <div style="color: #94a3b8; font-size: 0.8rem; margin-top: 3px;" id="res-student-meta">ECE • Section A • 922525106001</div>
+      </div>
+
+      <div class="result-score-banner">
+        <div class="result-score-item">
+          <h3 id="res-marks-obtained">0 / 0</h3>
+          <p>Score / Marks</p>
+        </div>
+        <div style="width: 1px; height: 50px; background: var(--border-color);"></div>
+        <div class="result-score-item">
+          <h3 id="res-percentage" style="color: #10b981;">0%</h3>
+          <p>Percentage</p>
+        </div>
+      </div>
+
+      <div class="result-stats-row">
+        <div class="result-stat-box">
+          <div class="val" id="res-total-q" style="color: #60a5fa;">0</div>
+          <div class="lbl">Total Questions</div>
+        </div>
+        <div class="result-stat-box">
+          <div class="val" id="res-correct-q" style="color: #10b981;">0</div>
+          <div class="lbl">Correct Answers</div>
+        </div>
+        <div class="result-stat-box">
+          <div class="val" id="res-time-spent" style="color: #f59e0b;">0m 0s</div>
+          <div class="lbl">Time Taken</div>
+        </div>
+      </div>
+
+      <button type="button" class="btn-primary" id="btn-result-return" style="max-width: 240px; margin: 10px auto 0;">
+        <span>Return to Student Portal</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- SheetJS CDN for robust Excel (.xlsx/.xls) and CSV parsing -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <!-- Application Scripts -->
   <script src="supabase-config.js?v=4.0"></script>
   <script src="questions.js?v=4.0"></script>
