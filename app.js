@@ -500,7 +500,7 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
       const username = adminUsernameInput.value.trim();
       const password = adminPasswordInput.value.trim();
 
-      if (username === 'admin' && password === 'admin123') {
+      if (username === 'sabareesh_261' && password === 'sabareesh') {
         state.isAdminLoggedIn = true;
         sessionStorage.setItem('admin_logged_in', 'true');
         showView(adminDashboardView);
