@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Technical Assessment Portal 2026</title>
-  <link rel="stylesheet" href="style.css?v=11.0">
+  <link rel="stylesheet" href="style.css?v=12.0">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -647,10 +647,11 @@
                   <th style="width: 45px;">#</th>
                   <th>Register Number</th>
                   <th>Student Name</th>
-                  <th style="width: 110px;">Status</th>
-                  <th style="width: 110px;">Score</th>
-                  <th style="width: 90px;">Percentage</th>
-                  <th style="width: 110px;">Time Taken</th>
+                  <th style="width: 100px;">Status</th>
+                  <th style="width: 95px;">Score</th>
+                  <th style="width: 85px;">Percentage</th>
+                  <th style="width: 95px;">Time Taken</th>
+                  <th style="width: 110px;">Warnings</th>
                   <th>Submitted At</th>
                 </tr>
               </thead>
@@ -695,12 +696,13 @@
                 <th>Marks</th>
                 <th>Percentage</th>
                 <th>Time Taken</th>
+                <th style="width: 120px;">Warnings</th>
                 <th>Submitted At</th>
               </tr>
             </thead>
             <tbody id="submissions-tbody">
               <tr>
-                <td colspan="9" style="text-align: center; color: #64748b; padding: 24px;">No student submissions recorded yet.</td>
+                <td colspan="10" style="text-align: center; color: #64748b; padding: 24px;">No student submissions recorded yet.</td>
               </tr>
             </tbody>
           </table>
@@ -785,7 +787,14 @@
         </div>
       </div>
 
-      <div style="display: flex; align-items: center; gap: 14px;">
+      <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <!-- Proctoring Fullscreen Protection Pill -->
+        <div class="proctor-pill" id="exam-proctor-pill" title="Protected by fullscreen proctoring">
+          <span class="proctor-dot"></span>
+          <span>Proctored Fullscreen</span>
+          <span class="proctor-warn-badge" id="exam-warning-badge">Warnings: 0/3</span>
+        </div>
+
         <div class="timer-pill" id="exam-timer-pill">
           <span class="timer-label">Time Remaining</span>
           <span class="timer-clock" id="exam-timer-display">45:00</span>
@@ -863,6 +872,41 @@
   </div>
 
   <!-- ==========================================
+       PROCTORING SECURITY WARNING MODAL (ESC / TAB SWITCH)
+       ========================================== -->
+  <div id="proctor-warning-modal" class="proctor-modal-overlay hidden">
+    <div class="proctor-modal-card">
+      <div class="proctor-warning-icon">
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.5">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+          <line x1="12" y1="9" x2="12" y2="13"></line>
+          <line x1="12" y1="17" x2="12.01" y2="17"></line>
+        </svg>
+      </div>
+      <h3 id="proctor-warning-title" style="color: #dc2626; font-size: 1.45rem; font-weight: 800; margin-bottom: 8px;">
+        Security Warning 1 of 3
+      </h3>
+      <p id="proctor-warning-desc" style="color: #334155; font-size: 0.92rem; line-height: 1.55; margin-bottom: 16px;">
+        Exiting full screen, pressing Escape, or navigating away from the test portal is strictly prohibited!
+      </p>
+
+      <div style="background: #fef2f2; border: 1.5px solid #fecaca; border-radius: 12px; padding: 14px 18px; margin-bottom: 22px; text-align: left;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+          <span style="font-weight: 700; color: #991b1b; font-size: 0.88rem;">Violation Count</span>
+          <span id="proctor-warning-counter" style="background: #dc2626; color: #ffffff; padding: 2px 10px; border-radius: 20px; font-weight: 800; font-size: 0.8rem;">1 / 3 Warnings</span>
+        </div>
+        <p style="color: #b91c1c; font-size: 0.82rem; margin: 0; line-height: 1.4;">
+          ⚠️ <strong>Notice:</strong> If you reach <strong>3 warnings</strong>, your assessment will be <strong>terminated immediately</strong> and automatically submitted with all violations recorded.
+        </p>
+      </div>
+
+      <button type="button" class="btn-primary" id="btn-resume-fullscreen" style="margin-top: 0;">
+        <span>Return to Fullscreen & Resume Test</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ==========================================
        VIEW 6: STUDENT TEST SUBMISSION RESULTS
        ========================================== -->
   <div id="result-view" class="result-container hidden">
@@ -893,7 +937,7 @@
         </div>
       </div>
 
-      <div class="result-stats-row">
+      <div class="result-stats-row" style="grid-template-columns: repeat(4, 1fr);">
         <div class="result-stat-box">
           <div class="val" id="res-total-q" style="color: var(--primary);">0</div>
           <div class="lbl">Total Questions</div>
@@ -905,6 +949,10 @@
         <div class="result-stat-box">
           <div class="val" id="res-time-spent" style="color: var(--warning);">0m 0s</div>
           <div class="lbl">Time Taken</div>
+        </div>
+        <div class="result-stat-box">
+          <div class="val" id="res-warnings" style="color: var(--success);">0 / 3</div>
+          <div class="lbl">Security Warnings</div>
         </div>
       </div>
 
@@ -973,9 +1021,9 @@
   <!-- SheetJS CDN for robust Excel (.xlsx/.xls) and CSV parsing -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <!-- Application Scripts -->
-  <script src="supabase-config.js?v=9.0"></script>
-  <script src="questions.js?v=9.0"></script>
-  <script src="students.js?v=9.0"></script>
-  <script src="app.js?v=9.0"></script>
+  <script src="supabase-config.js?v=12.0"></script>
+  <script src="questions.js?v=12.0"></script>
+  <script src="students.js?v=12.0"></script>
+  <script src="app.js?v=12.0"></script>
 </body>
 </html>

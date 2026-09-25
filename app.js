@@ -44,7 +44,12 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
     activeSectionDrilldown: null,
     drilldownFilter: 'all',
     submissionSectionFilter: 'ALL',
-    submissionSearchQuery: ''
+    submissionSearchQuery: '',
+
+    // Fullscreen Proctoring & Security State
+    proctorWarnings: 0,
+    isExamActive: false,
+    isWarningModalOpen: false
   };
 
   // Keep window.QUESTIONS_BANK in sync
@@ -208,6 +213,15 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
   const countCorrectQ = document.getElementById('count-correct-q');
   const reviewCardsContainer = document.getElementById('review-cards-container');
 
+  // Proctoring & Security Elements
+  const proctorWarningModal = document.getElementById('proctor-warning-modal');
+  const proctorWarningTitle = document.getElementById('proctor-warning-title');
+  const proctorWarningDesc = document.getElementById('proctor-warning-desc');
+  const proctorWarningCounter = document.getElementById('proctor-warning-counter');
+  const btnResumeFullscreen = document.getElementById('btn-resume-fullscreen');
+  const examWarningBadge = document.getElementById('exam-warning-badge');
+  const resWarnings = document.getElementById('res-warnings');
+
   // ========================================================
   // 1. INITIALIZATION & VIEW CONTROLLER
   // ========================================================
@@ -222,6 +236,7 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
     setupExamWorkspace();
     setupResultReview();
     setupAnalyticsTracker();
+    setupProctoringGuards();
 
     // Check if admin is currently active
     if (state.isAdminLoggedIn) {
@@ -1174,14 +1189,24 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
     state.examStartTime = new Date();
     state.examSecondsLeft = (state.testDuration || 45) * 60;
 
+    // Reset Proctoring State
+    state.proctorWarnings = 0;
+    state.isExamActive = true;
+    state.isWarningModalOpen = false;
+
     if (examAvatar) examAvatar.textContent = (state.student.name || 'S').charAt(0).toUpperCase();
     if (examStudentName) examStudentName.textContent = state.student.name;
     if (examStudentMeta) examStudentMeta.textContent = `${state.student.department} • Section ${state.student.section} • ${state.student.reg_no}`;
+
+    updateWarningDisplay();
 
     showView(examView);
     renderPaletteGrid();
     renderExamQuestion(0);
     startExamTimer();
+
+    // Enter Fullscreen Mode
+    requestPortalFullscreen();
   }
 
   function startExamTimer() {
@@ -1371,7 +1396,152 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
 
     if (confirm(confirmMsg)) {
       clearInterval(state.examTimerInterval);
-      finalizeSubmission();
+      finalizeSubmission(false);
+    }
+  }
+
+  // ========================================================
+  // 6.1. FULLSCREEN PROCTORING & SECURITY GUARDS (3 WARNINGS)
+  // ========================================================
+
+  function requestPortalFullscreen() {
+    const elem = document.documentElement;
+    if (elem.requestFullscreen) {
+      return elem.requestFullscreen().catch(err => {
+        console.warn('[Fullscreen Warning]:', err.message);
+      });
+    } else if (elem.webkitRequestFullscreen) {
+      return elem.webkitRequestFullscreen();
+    } else if (elem.mozRequestFullScreen) {
+      return elem.mozRequestFullScreen();
+    } else if (elem.msRequestFullscreen) {
+      return elem.msRequestFullscreen();
+    }
+  }
+
+  function setupProctoringGuards() {
+    // 1. Detect Fullscreen Exit (Escape key or browser control)
+    const onFullscreenChange = () => {
+      if (!state.isExamActive) return;
+      const isFull = Boolean(
+        document.fullscreenElement ||
+        document.webkitFullscreenElement ||
+        document.mozFullScreenElement ||
+        document.msFullscreenElement
+      );
+      if (!isFull) {
+        triggerProctorWarning('Exited fullscreen mode or pressed Escape');
+      }
+    };
+
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+    document.addEventListener('mozfullscreenchange', onFullscreenChange);
+    document.addEventListener('MSFullscreenChange', onFullscreenChange);
+
+    // 2. Tab switch or minimize window
+    document.addEventListener('visibilitychange', () => {
+      if (!state.isExamActive) return;
+      if (document.hidden) {
+        triggerProctorWarning('Switched tabs or minimized browser window');
+      }
+    });
+
+    // 3. Window blur (clicked outside or alt-tabbed)
+    window.addEventListener('blur', () => {
+      if (!state.isExamActive) return;
+      triggerProctorWarning('Left examination window');
+    });
+
+    // 4. Intercept Escape key explicitly
+    window.addEventListener('keydown', (e) => {
+      if (!state.isExamActive) return;
+      if (e.key === 'Escape' || e.keyCode === 27) {
+        triggerProctorWarning('Escape key detected');
+      }
+    });
+
+    // 5. Warning Modal "Return to Fullscreen & Resume" button
+    if (btnResumeFullscreen) {
+      btnResumeFullscreen.addEventListener('click', async () => {
+        if (proctorWarningModal) proctorWarningModal.classList.add('hidden');
+        state.isWarningModalOpen = false;
+        try {
+          await requestPortalFullscreen();
+        } catch (e) {
+          console.warn('[Resume Fullscreen Error]:', e);
+        }
+      });
+    }
+  }
+
+  function triggerProctorWarning(reason) {
+    if (!state.isExamActive) return;
+    if (state.isWarningModalOpen) return; // Prevent multiple simultaneous triggers
+
+    state.proctorWarnings = (state.proctorWarnings || 0) + 1;
+    state.isWarningModalOpen = true;
+
+    updateWarningDisplay();
+
+    if (state.proctorWarnings >= 3) {
+      // 3 warnings reached! Terminate test immediately!
+      terminateAssessmentDueToWarnings(reason);
+    } else {
+      // Show Warning Modal
+      showWarningModal(reason);
+    }
+  }
+
+  function showWarningModal(reason) {
+    if (!proctorWarningModal) return;
+
+    if (proctorWarningTitle) {
+      proctorWarningTitle.textContent = `Security Warning ${state.proctorWarnings} of 3`;
+    }
+    if (proctorWarningDesc) {
+      proctorWarningDesc.textContent = `Warning ${state.proctorWarnings} of 3: ${reason}. Exiting full screen or navigating away from the test portal is strictly prohibited!`;
+    }
+    if (proctorWarningCounter) {
+      proctorWarningCounter.textContent = `${state.proctorWarnings} / 3 Warnings`;
+    }
+
+    proctorWarningModal.classList.remove('hidden');
+  }
+
+  function terminateAssessmentDueToWarnings(reason) {
+    state.isExamActive = false;
+    state.isWarningModalOpen = false;
+    if (proctorWarningModal) proctorWarningModal.classList.add('hidden');
+
+    if (state.examTimerInterval) clearInterval(state.examTimerInterval);
+
+    try {
+      if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
+    } catch (e) {}
+
+    alert(`⚠️ TEST TERMINATED IMMEDIATELY!\n\nYou have exceeded the maximum limit of 3 security warnings (${reason}).\n\nYour assessment has been automatically ended and submitted with all violation records.`);
+
+    finalizeSubmission(true);
+  }
+
+  function updateWarningDisplay() {
+    if (examWarningBadge) {
+      const count = state.proctorWarnings || 0;
+      examWarningBadge.textContent = `Warnings: ${count}/3`;
+      if (count >= 2) {
+        examWarningBadge.style.background = '#fef2f2';
+        examWarningBadge.style.color = '#dc2626';
+        examWarningBadge.style.borderColor = '#fecaca';
+      } else if (count === 1) {
+        examWarningBadge.style.background = '#fffbeb';
+        examWarningBadge.style.color = '#d97706';
+        examWarningBadge.style.borderColor = '#fde68a';
+      } else {
+        examWarningBadge.style.background = '#eff6ff';
+        examWarningBadge.style.color = '#2563eb';
+        examWarningBadge.style.borderColor = '#bfdbfe';
+      }
     }
   }
 
@@ -1379,7 +1549,7 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
   // 7. EVALUATION, RESULTS & ANSWER KEY REPORT GENERATION
   // ========================================================
 
-  async function finalizeSubmission() {
+  async function finalizeSubmission(isTerminated = false) {
     let correctCount = 0;
     const totalQ = state.questions.length;
     const incorrectRecords = [];
@@ -1464,6 +1634,8 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
       obtained_marks: obtainedMarks,
       percentage: parseFloat(percentage),
       time_taken_seconds: timeSpentSeconds,
+      warning_count: state.proctorWarnings || 0,
+      is_terminated: Boolean(isTerminated || state.proctorWarnings >= 3),
       submitted_at: new Date().toISOString()
     };
 
@@ -1477,9 +1649,19 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
       timeSpentMins,
       timeSpentSecs,
       timeSpentFormatted,
+      warning_count: state.proctorWarnings || 0,
+      is_terminated: Boolean(isTerminated || state.proctorWarnings >= 3),
       submittedAt: submissionData.submitted_at,
       evaluations: evaluations
     };
+
+    // Exit fullscreen if active
+    try {
+      if (document.fullscreenElement || document.webkitFullscreenElement) {
+        if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+      }
+    } catch (e) {}
 
     // Persist to session and local storage
     try {
@@ -1526,6 +1708,16 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
     if (resTotalQ) resTotalQ.textContent = totalQ;
     if (resCorrectQ) resCorrectQ.textContent = correctCount;
     if (resTimeSpent) resTimeSpent.textContent = timeSpentFormatted;
+    if (resWarnings) {
+      const warnCount = state.proctorWarnings || 0;
+      if (warnCount >= 3 || isTerminated) {
+        resWarnings.innerHTML = `<span style="color: #dc2626; font-weight: 800;">3 / 3 (Terminated)</span>`;
+      } else if (warnCount > 0) {
+        resWarnings.innerHTML = `<span style="color: #d97706; font-weight: 700;">${warnCount} / 3</span>`;
+      } else {
+        resWarnings.innerHTML = `<span style="color: #16a34a; font-weight: 700;">0 / 3 (Clean)</span>`;
+      }
+    }
 
     // Reset filter to All
     state.reviewFilter = 'all';
@@ -2361,7 +2553,7 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
     if (!drilldownTbody) return;
 
     if (filteredRoster.length === 0) {
-      drilldownTbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: #64748b; padding: 24px;">No candidates found matching this filter (${filter}).</td></tr>`;
+      drilldownTbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: #64748b; padding: 24px;">No candidates found matching this filter (${filter}).</td></tr>`;
       return;
     }
 
@@ -2388,6 +2580,18 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
         timeFormatted = `${mins}m ${secs}s`;
       }
 
+      let warnBadge = '<span style="color: #94a3b8; font-size: 0.82rem;">—</span>';
+      if (isCompleted) {
+        const warnCount = Number(sub.warning_count) || 0;
+        if (warnCount >= 3) {
+          warnBadge = `<span style="background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; padding: 2px 7px; border-radius: 9999px; font-weight: 700; font-size: 0.76rem;" title="Test auto-terminated due to 3 security violations">🚨 ${warnCount} (Terminated)</span>`;
+        } else if (warnCount > 0) {
+          warnBadge = `<span style="background: #fffbeb; color: #b45309; border: 1px solid #fde68a; padding: 2px 7px; border-radius: 9999px; font-weight: 600; font-size: 0.76rem;">⚠️ ${warnCount} Warn</span>`;
+        } else {
+          warnBadge = `<span style="background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; padding: 2px 7px; border-radius: 9999px; font-weight: 600; font-size: 0.76rem;">✔ 0 Clean</span>`;
+        }
+      }
+
       const dateDisplay = isCompleted
         ? `<span style="font-size: 0.82rem; color: #475569;">${new Date(sub.submitted_at).toLocaleString()}</span>`
         : `<span style="color: #94a3b8; font-size: 0.82rem;">Not Attempted</span>`;
@@ -2401,6 +2605,7 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
           <td>${scoreDisplay}</td>
           <td>${pctDisplay}</td>
           <td style="color: #64748b; font-size: 0.84rem;">${timeFormatted}</td>
+          <td>${warnBadge}</td>
           <td>${dateDisplay}</td>
         </tr>
       `;
@@ -2422,7 +2627,7 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
     });
 
     if (filtered.length === 0) {
-      submissionsTbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: #64748b; padding: 24px;">No student submissions found matching the criteria.</td></tr>`;
+      submissionsTbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: #64748b; padding: 24px;">No student submissions found matching the criteria.</td></tr>`;
       return;
     }
 
@@ -2432,6 +2637,16 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
         const mins = Math.floor(sub.time_taken_seconds / 60);
         const secs = sub.time_taken_seconds % 60;
         timeFormatted = `${mins}m ${secs}s`;
+      }
+
+      const warnCount = Number(sub.warning_count) || 0;
+      let warnBadge = '';
+      if (warnCount >= 3) {
+        warnBadge = `<span style="background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; padding: 2px 7px; border-radius: 9999px; font-weight: 700; font-size: 0.76rem;" title="Test auto-terminated due to 3 security violations">🚨 ${warnCount} (Terminated)</span>`;
+      } else if (warnCount > 0) {
+        warnBadge = `<span style="background: #fffbeb; color: #b45309; border: 1px solid #fde68a; padding: 2px 7px; border-radius: 9999px; font-weight: 600; font-size: 0.76rem;">⚠️ ${warnCount} Warn</span>`;
+      } else {
+        warnBadge = `<span style="background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; padding: 2px 7px; border-radius: 9999px; font-weight: 600; font-size: 0.76rem;">✔ 0 Clean</span>`;
       }
 
       return `
@@ -2444,6 +2659,7 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
           <td><strong style="color: #16a34a;">${sub.obtained_marks} / ${sub.total_marks}</strong></td>
           <td><span style="font-weight: 700; color: ${parseFloat(sub.percentage) >= 50 ? '#16a34a' : '#dc2626'};">${sub.percentage}%</span></td>
           <td style="color: #64748b; font-size: 0.84rem;">${timeFormatted}</td>
+          <td>${warnBadge}</td>
           <td style="color: #64748b; font-size: 0.82rem;">${new Date(sub.submitted_at).toLocaleString()}</td>
         </tr>
       `;
@@ -2479,6 +2695,7 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
       csvCell('Total Marks'),
       csvCell('Percentage (%)'),
       csvCell('Time Taken'),
+      csvCell('Security Warnings'),
       csvCell('Submission Date & Time')
     ]);
 
@@ -2490,6 +2707,9 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
         timeFormatted = `${mins}m ${secs}s`;
       }
 
+      const warnCount = Number(sub.warning_count) || 0;
+      const warnStatus = warnCount >= 3 ? `${warnCount} (Terminated)` : `${warnCount}`;
+
       rows.push([
         csvCell(idx + 1),
         csvCell(sub.reg_no),
@@ -2500,6 +2720,7 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
         csvCell(sub.total_marks),
         csvCell(`${sub.percentage}%`),
         csvCell(timeFormatted),
+        csvCell(warnStatus),
         csvCell(new Date(sub.submitted_at).toLocaleString())
       ]);
     });
@@ -2559,6 +2780,7 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
       csvCell('Total Marks'),
       csvCell('Percentage (%)'),
       csvCell('Time Taken'),
+      csvCell('Security Warnings'),
       csvCell('Submission Date & Time')
     ]);
 
@@ -2573,6 +2795,12 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
         timeFormatted = `${mins}m ${secs}s`;
       }
 
+      let warnCell = '—';
+      if (isCompleted) {
+        const warnCount = Number(sub.warning_count) || 0;
+        warnCell = warnCount >= 3 ? `${warnCount} (Terminated)` : `${warnCount}`;
+      }
+
       rows.push([
         csvCell(idx + 1),
         csvCell(s.reg_no),
@@ -2584,6 +2812,7 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
         csvCell(isCompleted ? sub.total_marks : '—'),
         csvCell(isCompleted ? `${sub.percentage}%` : '—'),
         csvCell(timeFormatted),
+        csvCell(warnCell),
         csvCell(isCompleted ? new Date(sub.submitted_at).toLocaleString() : 'Not Attempted')
       ]);
     });

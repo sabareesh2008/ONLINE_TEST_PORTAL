@@ -131,10 +131,7 @@ const SupabaseAPI = {
     if (!SupabaseAPI.isConfigured()) return null;
 
     try {
-      const subRes = await fetch(`${SUPABASE_CONFIG.url}/rest/v1/submissions`, {
-        method: 'POST',
-        headers: SupabaseAPI.getHeaders(),
-        body: JSON.stringify([{
+        const payload = {
           reg_no: submissionData.reg_no,
           student_name: submissionData.student_name,
           department: submissionData.department,
@@ -142,14 +139,32 @@ const SupabaseAPI = {
           total_marks: submissionData.total_marks,
           obtained_marks: submissionData.obtained_marks,
           percentage: parseFloat(submissionData.percentage),
-          time_taken_seconds: submissionData.time_taken_seconds
-        }])
-      });
+          time_taken_seconds: submissionData.time_taken_seconds,
+          warning_count: submissionData.warning_count !== undefined ? submissionData.warning_count : 0
+        };
 
-      if (!subRes.ok) {
-        console.error('[Supabase REST] Save submission failed:', await subRes.text());
-        return null;
-      }
+        let subRes = await fetch(`${SUPABASE_CONFIG.url}/rest/v1/submissions`, {
+          method: 'POST',
+          headers: SupabaseAPI.getHeaders(),
+          body: JSON.stringify([payload])
+        });
+
+        // Graceful fallback if warning_count column does not exist yet in Supabase
+        if (!subRes.ok) {
+          const errText = await subRes.text();
+          if (errText.includes('warning_count')) {
+            console.warn('[Supabase REST] warning_count column not found in submissions table, retrying without it...');
+            delete payload.warning_count;
+            subRes = await fetch(`${SUPABASE_CONFIG.url}/rest/v1/submissions`, {
+              method: 'POST',
+              headers: SupabaseAPI.getHeaders(),
+              body: JSON.stringify([payload])
+            });
+          } else {
+            console.error('[Supabase REST] Save submission failed:', errText);
+            return null;
+          }
+        }
 
       const inserted = await subRes.json();
       const submissionId = inserted && inserted[0] ? inserted[0].id : null;
