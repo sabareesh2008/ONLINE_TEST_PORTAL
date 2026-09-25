@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Technical Assessment Portal 2026</title>
-  <link rel="stylesheet" href="style.css?v=14.0">
+  <link rel="stylesheet" href="style.css?v=15.0">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -585,16 +585,34 @@
             <p class="card-desc" style="margin-bottom: 0;">Click on any section card below to open its roster, inspect student statuses, or download section reports.</p>
           </div>
 
-          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-            <button type="button" class="btn-portal-primary" id="btn-download-all-excel" style="padding: 8px 14px; font-size: 0.85rem; background: #16a34a; border-color: #16a34a;" title="Export to Microsoft Excel (.XLSX)">
-              <span>📗 Excel (.XLSX)</span>
-            </button>
-            <button type="button" class="btn-portal-primary" id="btn-download-all-pdf" style="padding: 8px 14px; font-size: 0.85rem; background: #dc2626; border-color: #dc2626;" title="Export to Adobe PDF Document">
-              <span>📕 PDF (.PDF)</span>
-            </button>
-            <button type="button" class="btn-portal-secondary" id="btn-download-all-submissions" style="padding: 8px 14px; font-size: 0.85rem;" title="Export to Standard CSV">
-              <span>📄 CSV (.CSV)</span>
-            </button>
+          <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+            <!-- Overall Section Summary Matrix (Excel, PDF, CSV) -->
+            <div style="display: flex; align-items: center; gap: 6px; background: #f0fdf4; padding: 4px 8px; border-radius: 8px; border: 1px solid #bbf7d0;">
+              <span style="font-size: 0.78rem; font-weight: 700; color: #166534; text-transform: uppercase; letter-spacing: 0.5px;">Section Summary:</span>
+              <button type="button" class="btn-portal-primary" id="btn-download-section-matrix-excel" style="padding: 6px 11px; font-size: 0.80rem; background: #059669; border-color: #059669;" title="Download Overall Section Summary in Excel (.XLSX)">
+                <span>📗 Excel</span>
+              </button>
+              <button type="button" class="btn-portal-primary" id="btn-download-section-matrix-pdf" style="padding: 6px 11px; font-size: 0.80rem; background: #dc2626; border-color: #dc2626;" title="Download Overall Section Summary in PDF (.PDF)">
+                <span>📕 PDF</span>
+              </button>
+              <button type="button" class="btn-portal-secondary" id="btn-download-section-matrix-csv" style="padding: 6px 11px; font-size: 0.80rem;" title="Download Overall Section Summary in CSV (.CSV)">
+                <span>📄 CSV</span>
+              </button>
+            </div>
+
+            <!-- Full Submissions (All Candidates) -->
+            <div style="display: flex; align-items: center; gap: 6px; background: #f8fafc; padding: 4px 8px; border-radius: 8px; border: 1px solid #e2e8f0;">
+              <span style="font-size: 0.78rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Candidate List:</span>
+              <button type="button" class="btn-portal-primary" id="btn-download-all-excel" style="padding: 6px 11px; font-size: 0.80rem; background: #16a34a; border-color: #16a34a;" title="Export All Candidate Submissions to Excel (.XLSX)">
+                <span>📗 Excel</span>
+              </button>
+              <button type="button" class="btn-portal-primary" id="btn-download-all-pdf" style="padding: 6px 11px; font-size: 0.80rem; background: #e11d48; border-color: #e11d48;" title="Export All Candidate Submissions to PDF (.PDF)">
+                <span>📕 PDF</span>
+              </button>
+              <button type="button" class="btn-portal-secondary" id="btn-download-all-submissions" style="padding: 6px 11px; font-size: 0.80rem;" title="Export All Candidate Submissions to CSV (.CSV)">
+                <span>📄 CSV</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -1119,9 +1137,9 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
   <!-- Application Scripts -->
-  <script src="supabase-config.js?v=14.0"></script>
-  <script src="questions.js?v=14.0"></script>
-  <script src="students.js?v=14.0"></script>
-  <script src="app.js?v=14.0"></script>
+  <script src="supabase-config.js?v=15.0"></script>
+  <script src="questions.js?v=15.0"></script>
+  <script src="students.js?v=15.0"></script>
+  <script src="app.js?v=15.0"></script>
 </body>
 </html>

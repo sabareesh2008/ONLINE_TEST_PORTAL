@@ -166,6 +166,9 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
   // Admin Tab 3 (Analytics & Section Tracker)
   const sectionProgressCards = document.getElementById('section-progress-cards');
   const submissionsTbody = document.getElementById('submissions-tbody');
+  const btnDownloadSectionMatrixExcel = document.getElementById('btn-download-section-matrix-excel');
+  const btnDownloadSectionMatrixPdf = document.getElementById('btn-download-section-matrix-pdf');
+  const btnDownloadSectionMatrixCsv = document.getElementById('btn-download-section-matrix-csv');
   const btnDownloadAllExcel = document.getElementById('btn-download-all-excel');
   const btnDownloadAllPdf = document.getElementById('btn-download-all-pdf');
   const btnDownloadAllSubmissions = document.getElementById('btn-download-all-submissions');
@@ -2697,7 +2700,27 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
   // ========================================================
 
   function setupAnalyticsTracker() {
-    // 1. Download All Submissions (Excel, PDF, CSV)
+    // 1. Download Overall Section Summary Matrix (Excel, PDF, CSV)
+    if (btnDownloadSectionMatrixExcel) {
+      btnDownloadSectionMatrixExcel.addEventListener('click', (e) => {
+        e.preventDefault();
+        downloadSectionMatrixExcel();
+      });
+    }
+    if (btnDownloadSectionMatrixPdf) {
+      btnDownloadSectionMatrixPdf.addEventListener('click', (e) => {
+        e.preventDefault();
+        downloadSectionMatrixPDF();
+      });
+    }
+    if (btnDownloadSectionMatrixCsv) {
+      btnDownloadSectionMatrixCsv.addEventListener('click', (e) => {
+        e.preventDefault();
+        downloadSectionMatrixCSV();
+      });
+    }
+
+    // 2. Download All Submissions (Excel, PDF, CSV)
     if (btnDownloadAllExcel) {
       btnDownloadAllExcel.addEventListener('click', (e) => {
         e.preventDefault();
@@ -3091,7 +3114,268 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
     };
   }
 
-  // 1. Download All Submissions as CSV file (Centered summary, no summary header wordings)
+  // Helper to compile consolidated section-by-section matrix data
+  function getSectionSummaryMatrixData() {
+    const analyzingTest = getAnalyzingTest();
+    const testSubs = (analyzingTest && Array.isArray(analyzingTest.submissions))
+      ? analyzingTest.submissions
+      : state.submissions;
+    const testTitle = analyzingTest ? analyzingTest.title : state.testTitle;
+
+    const dynamicSections = [...new Set(state.allStudents.map(s => s.section))].filter(Boolean).sort();
+    const sections = dynamicSections.length > 0 ? dynamicSections : ['A', 'B', 'C', 'D', 'E', 'F'];
+
+    const sampleTotalMarks = (testSubs && testSubs[0]?.total_marks) || (state.questions ? state.questions.length : 0);
+
+    const sectionRows = sections.map(sec => {
+      const enrolled = state.allStudents.filter(s => s.section === sec).length;
+      const secSubs = (testSubs || []).filter(s => s.section === sec);
+      const attended = secSubs.length;
+      const passedSubs = secSubs.filter(sub => {
+        const pct = parseFloat(sub.percentage);
+        if (!isNaN(pct)) return pct >= 50;
+        const obt = Number(sub.obtained_marks) || 0;
+        const tot = Number(sub.total_marks) || 0;
+        return tot > 0 ? (obt / tot) >= 0.5 : false;
+      });
+      const passed = passedSubs.length;
+      const passPct = attended > 0 ? ((passed / attended) * 100).toFixed(2) : '0.00';
+
+      let avgDisplay = '0.00';
+      if (attended > 0) {
+        const sumMarks = secSubs.reduce((acc, curr) => acc + (Number(curr.obtained_marks) || 0), 0);
+        const avgMarks = (sumMarks / attended).toFixed(2);
+        const sumPct = secSubs.reduce((acc, curr) => acc + (parseFloat(curr.percentage) || 0), 0);
+        const avgPct = (sumPct / attended).toFixed(2);
+        avgDisplay = `${avgMarks} / ${sampleTotalMarks} (${avgPct}%)`;
+      }
+
+      return {
+        section: `Section ${sec}`,
+        enrolled,
+        attended,
+        passed,
+        passPercentage: `${passPct}%`,
+        averageMark: avgDisplay
+      };
+    });
+
+    const totalEnrolled = state.allStudents.length;
+    const totalAttended = (testSubs || []).length;
+    const totalPassedSubs = (testSubs || []).filter(sub => {
+      const pct = parseFloat(sub.percentage);
+      if (!isNaN(pct)) return pct >= 50;
+      const obt = Number(sub.obtained_marks) || 0;
+      const tot = Number(sub.total_marks) || 0;
+      return tot > 0 ? (obt / tot) >= 0.5 : false;
+    });
+    const totalPassed = totalPassedSubs.length;
+    const totalPassPct = totalAttended > 0 ? ((totalPassed / totalAttended) * 100).toFixed(2) : '0.00';
+
+    let totalAvgDisplay = '0.00';
+    if (totalAttended > 0) {
+      const sumMarks = (testSubs || []).reduce((acc, curr) => acc + (Number(curr.obtained_marks) || 0), 0);
+      const avgMarks = (sumMarks / totalAttended).toFixed(2);
+      const sumPct = (testSubs || []).reduce((acc, curr) => acc + (parseFloat(curr.percentage) || 0), 0);
+      const avgPct = (sumPct / totalAttended).toFixed(2);
+      totalAvgDisplay = `${avgMarks} / ${sampleTotalMarks} (${avgPct}%)`;
+    }
+
+    const overallRow = {
+      section: 'OVERALL TOTAL',
+      enrolled: totalEnrolled,
+      attended: totalAttended,
+      passed: totalPassed,
+      passPercentage: `${totalPassPct}%`,
+      averageMark: totalAvgDisplay
+    };
+
+    return {
+      testTitle,
+      sectionRows,
+      overallRow
+    };
+  }
+
+  // 1. Download Overall Section Summary Matrix as CSV file
+  function downloadSectionMatrixCSV() {
+    const data = getSectionSummaryMatrixData();
+    const rows = [];
+    rows.push([formatCsvCell('TECHNICAL ASSESSMENT - OVERALL SECTION PERFORMANCE SUMMARY')]);
+    rows.push([formatCsvCell('Examination Title:'), formatCsvCell(data.testTitle || 'Technical Assessment 2026')]);
+    rows.push([formatCsvCell('Export Date:'), formatCsvCell(new Date().toLocaleString())]);
+    rows.push([]);
+    rows.push([
+      formatCsvCell('Section'),
+      formatCsvCell('Total Students'),
+      formatCsvCell('Total Attended'),
+      formatCsvCell('Total Passed'),
+      formatCsvCell('Pass Percentage'),
+      formatCsvCell('Average Mark')
+    ]);
+
+    data.sectionRows.forEach(item => {
+      rows.push([
+        formatCsvCell(item.section),
+        formatCsvCell(item.enrolled),
+        formatCsvCell(item.attended),
+        formatCsvCell(item.passed),
+        formatCsvCell(item.passPercentage),
+        formatCsvCell(item.averageMark)
+      ]);
+    });
+
+    rows.push([
+      formatCsvCell(data.overallRow.section),
+      formatCsvCell(data.overallRow.enrolled),
+      formatCsvCell(data.overallRow.attended),
+      formatCsvCell(data.overallRow.passed),
+      formatCsvCell(data.overallRow.passPercentage),
+      formatCsvCell(data.overallRow.averageMark)
+    ]);
+
+    const csvContent = rows.map(r => r.join(',')).join('\r\n');
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const safeTitle = (data.testTitle || 'Assessment').replace(/[^a-zA-Z0-9]/g, '_');
+    link.download = `${safeTitle}_Overall_Section_Summary_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }, 200);
+  }
+
+  // 2. Download Overall Section Summary Matrix as Excel (.XLSX)
+  function downloadSectionMatrixExcel() {
+    const data = getSectionSummaryMatrixData();
+    if (typeof XLSX === 'undefined') {
+      alert('Excel export engine is initializing. Please wait a moment or export as CSV.');
+      return;
+    }
+
+    const rows = [
+      ['TECHNICAL ASSESSMENT - OVERALL SECTION PERFORMANCE SUMMARY'],
+      ['Examination Title:', data.testTitle || 'Technical Assessment 2026'],
+      ['Export Date:', new Date().toLocaleString()],
+      [],
+      [
+        'Section',
+        'Total Students',
+        'Total Attended',
+        'Total Passed',
+        'Pass Percentage',
+        'Average Mark'
+      ]
+    ];
+
+    data.sectionRows.forEach(item => {
+      rows.push([
+        item.section,
+        item.enrolled,
+        item.attended,
+        item.passed,
+        item.passPercentage,
+        item.averageMark
+      ]);
+    });
+
+    rows.push([
+      data.overallRow.section,
+      data.overallRow.enrolled,
+      data.overallRow.attended,
+      data.overallRow.passed,
+      data.overallRow.passPercentage,
+      data.overallRow.averageMark
+    ]);
+
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 28 }
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Section Summary');
+    const safeTitle = (data.testTitle || 'Assessment').replace(/[^a-zA-Z0-9]/g, '_');
+    XLSX.writeFile(wb, `${safeTitle}_Overall_Section_Summary_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  }
+
+  // 3. Download Overall Section Summary Matrix as PDF (.PDF)
+  function downloadSectionMatrixPDF() {
+    const data = getSectionSummaryMatrixData();
+    const tableHeaders = ['Section', 'Total Students', 'Total Attended', 'Total Passed', 'Pass Percentage', 'Average Mark'];
+    const tableData = data.sectionRows.map(item => [
+      item.section,
+      item.enrolled,
+      item.attended,
+      item.passed,
+      item.passPercentage,
+      item.averageMark
+    ]);
+    tableData.push([
+      data.overallRow.section,
+      data.overallRow.enrolled,
+      data.overallRow.attended,
+      data.overallRow.passed,
+      data.overallRow.passPercentage,
+      data.overallRow.averageMark
+    ]);
+
+    if (window.jspdf && window.jspdf.jsPDF) {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+
+      doc.setFontSize(16);
+      doc.setTextColor(15, 23, 42);
+      doc.text('OVERALL SECTION PERFORMANCE SUMMARY', 40, 42);
+
+      doc.setFontSize(9.5);
+      doc.setTextColor(100, 116, 139);
+      doc.text(`Examination: ${data.testTitle || 'Technical Assessment 2026'}   |   Exported: ${new Date().toLocaleString()}`, 40, 60);
+
+      doc.autoTable({
+        head: [tableHeaders],
+        body: tableData,
+        startY: 78,
+        styles: { fontSize: 9.5, cellPadding: 8, halign: 'center' },
+        headStyles: { fillColor: [37, 99, 235], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center' },
+        columnStyles: {
+          0: { halign: 'left', fontStyle: 'bold' }
+        },
+        didParseCell: function(cellData) {
+          if (cellData.row.index === tableData.length - 1) {
+            cellData.cell.styles.fontStyle = 'bold';
+            cellData.cell.styles.fillColor = [241, 245, 249];
+            cellData.cell.styles.textColor = [15, 23, 42];
+          }
+        },
+        theme: 'grid',
+        margin: { left: 40, right: 40 }
+      });
+
+      const safeTitle = (data.testTitle || 'Assessment').replace(/[^a-zA-Z0-9]/g, '_');
+      doc.save(`${safeTitle}_Overall_Section_Summary_${new Date().toISOString().slice(0, 10)}.pdf`);
+    } else {
+      renderFallbackPrintReport(
+        'Overall Section Performance Summary',
+        `Examination: ${data.testTitle || 'Technical Assessment 2026'} | Exported: ${new Date().toLocaleString()}`,
+        tableHeaders,
+        tableData,
+        []
+      );
+    }
+  }
+
+  // 4. Download All Submissions as CSV file (Centered summary, no summary header wordings)
   function downloadAllSubmissionsCSV() {
     const analyzingTest = getAnalyzingTest();
     const testSubs = (analyzingTest && Array.isArray(analyzingTest.submissions))
@@ -3766,13 +4050,14 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
       ${rowsData.map(r => `<tr>${r.map(c => `<td>${c !== undefined && c !== null ? c : ''}</td>`).join('')}</tr>`).join('')}
     </tbody>
   </table>
+  ${(summaryList && summaryList.length > 0) ? `
   <div class="summary-box">
     <table class="summary-table">
       <tbody>
         ${summaryList.map(item => `<tr><td class="label">${item[0]}</td><td class="val">${item[1]}</td></tr>`).join('')}
       </tbody>
     </table>
-  </div>
+  </div>` : ''}
   <script>
     window.onload = function() {
       setTimeout(function() {
