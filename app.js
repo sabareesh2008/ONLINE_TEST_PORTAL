@@ -166,6 +166,8 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
   // Admin Tab 3 (Analytics & Section Tracker)
   const sectionProgressCards = document.getElementById('section-progress-cards');
   const submissionsTbody = document.getElementById('submissions-tbody');
+  const btnDownloadAllExcel = document.getElementById('btn-download-all-excel');
+  const btnDownloadAllPdf = document.getElementById('btn-download-all-pdf');
   const btnDownloadAllSubmissions = document.getElementById('btn-download-all-submissions');
   const filterSubmissionSection = document.getElementById('filter-submission-section');
   const searchSubmissionStudent = document.getElementById('search-submission-student');
@@ -174,6 +176,8 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
   const sectionDrilldownPanel = document.getElementById('section-drilldown-panel');
   const drilldownTitle = document.getElementById('drilldown-title');
   const drilldownSubtitle = document.getElementById('drilldown-subtitle');
+  const btnDownloadSectionExcel = document.getElementById('btn-download-section-excel');
+  const btnDownloadSectionPdf = document.getElementById('btn-download-section-pdf');
   const btnDownloadSectionReport = document.getElementById('btn-download-section-report');
   const btnDownloadSectionText = document.getElementById('btn-download-section-text');
   const btnCloseDrilldown = document.getElementById('btn-close-drilldown');
@@ -2693,7 +2697,19 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
   // ========================================================
 
   function setupAnalyticsTracker() {
-    // 1. Download All Submissions CSV
+    // 1. Download All Submissions (Excel, PDF, CSV)
+    if (btnDownloadAllExcel) {
+      btnDownloadAllExcel.addEventListener('click', (e) => {
+        e.preventDefault();
+        downloadAllSubmissionsExcel();
+      });
+    }
+    if (btnDownloadAllPdf) {
+      btnDownloadAllPdf.addEventListener('click', (e) => {
+        e.preventDefault();
+        downloadAllSubmissionsPDF();
+      });
+    }
     if (btnDownloadAllSubmissions) {
       btnDownloadAllSubmissions.addEventListener('click', (e) => {
         e.preventDefault();
@@ -2701,7 +2717,27 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
       });
     }
 
-    // 2. Download Section Report CSV
+    // 2. Download Section Report (Excel, PDF, CSV)
+    if (btnDownloadSectionExcel) {
+      btnDownloadSectionExcel.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (state.activeSectionDrilldown) {
+          downloadSectionReportExcel(state.activeSectionDrilldown);
+        } else {
+          alert('Please select a section first.');
+        }
+      });
+    }
+    if (btnDownloadSectionPdf) {
+      btnDownloadSectionPdf.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (state.activeSectionDrilldown) {
+          downloadSectionReportPDF(state.activeSectionDrilldown);
+        } else {
+          alert('Please select a section first.');
+        }
+      });
+    }
     if (btnDownloadSectionReport) {
       btnDownloadSectionReport.addEventListener('click', (e) => {
         e.preventDefault();
@@ -2867,7 +2903,10 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
 
     if (drilldownTitle) drilldownTitle.textContent = `Section ${sec} Candidate Performance Breakdown - ${analyzingTest ? analyzingTest.title : state.testTitle}`;
     if (drilldownSubtitle) drilldownSubtitle.textContent = `Showing all ${enrolledCount} enrolled students in Section ${sec} and test completion records.`;
-    if (btnDownloadSectionText) btnDownloadSectionText.textContent = `Download Section ${sec} Report (.CSV)`;
+    if (btnDownloadSectionText) btnDownloadSectionText.textContent = `📄 CSV (.CSV)`;
+    if (btnDownloadSectionExcel) btnDownloadSectionExcel.title = `Download Section ${sec} Report in Excel (.XLSX)`;
+    if (btnDownloadSectionPdf) btnDownloadSectionPdf.title = `Download Section ${sec} Report in PDF (.PDF)`;
+    if (btnDownloadSectionReport) btnDownloadSectionReport.title = `Download Section ${sec} Report in CSV (.CSV)`;
 
     if (drilldownEnrolled) drilldownEnrolled.textContent = enrolledCount;
     if (drilldownCompleted) drilldownCompleted.textContent = completedCount;
@@ -3008,7 +3047,51 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
     }).join('');
   }
 
-  // Download All Submissions as CSV file
+  // ========================================================
+  // 8.2. REPORT EXPORTERS (CSV, EXCEL .XLSX, PDF .PDF)
+  // ========================================================
+
+  // Reusable helper to format CSV cells safely
+  function formatCsvCell(val) {
+    if (val === null || val === undefined) return '""';
+    const clean = String(val).replace(/"/g, '""');
+    return `"${clean}"`;
+  }
+
+  // Calculate summary statistics for any submission array and enrolled count
+  function computeSummaryStatistics(subs, enrolledCount) {
+    const totalEnrolled = enrolledCount || 0;
+    const totalAttended = subs ? subs.length : 0;
+    const passedSubs = (subs || []).filter(sub => {
+      const pct = parseFloat(sub.percentage);
+      if (!isNaN(pct)) return pct >= 50;
+      const obt = Number(sub.obtained_marks) || 0;
+      const tot = Number(sub.total_marks) || 0;
+      return tot > 0 ? (obt / tot) >= 0.5 : false;
+    });
+    const totalPassed = passedSubs.length;
+    const passPercentage = totalAttended > 0 ? ((totalPassed / totalAttended) * 100).toFixed(2) : '0.00';
+
+    let markAverageDisplay = '0.00';
+    if (totalAttended > 0) {
+      const sumMarks = subs.reduce((acc, curr) => acc + (Number(curr.obtained_marks) || 0), 0);
+      const avgMarks = (sumMarks / totalAttended).toFixed(2);
+      const sumPct = subs.reduce((acc, curr) => acc + (parseFloat(curr.percentage) || 0), 0);
+      const avgPct = (sumPct / totalAttended).toFixed(2);
+      const sampleTotalMarks = subs[0]?.total_marks || (state.questions ? state.questions.length : 0);
+      markAverageDisplay = `${avgMarks} / ${sampleTotalMarks} (${avgPct}%)`;
+    }
+
+    return {
+      totalEnrolled,
+      totalAttended,
+      totalPassed,
+      passPercentage,
+      markAverageDisplay
+    };
+  }
+
+  // 1. Download All Submissions as CSV file (Centered summary, no summary header wordings)
   function downloadAllSubmissionsCSV() {
     const analyzingTest = getAnalyzingTest();
     const testSubs = (analyzingTest && Array.isArray(analyzingTest.submissions))
@@ -3021,30 +3104,24 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
       return;
     }
 
-    function csvCell(val) {
-      if (val === null || val === undefined) return '""';
-      const clean = String(val).replace(/"/g, '""');
-      return `"${clean}"`;
-    }
-
     const rows = [];
-    rows.push([csvCell('TECHNICAL ASSESSMENT - ALL CANDIDATE SUBMISSIONS EXPORT')]);
-    rows.push([csvCell('Examination Title:'), csvCell(testTitle || 'Technical Assessment 2026')]);
-    rows.push([csvCell('Total Submissions Recorded:'), csvCell(testSubs.length)]);
-    rows.push([csvCell('Export Date:'), csvCell(new Date().toLocaleString())]);
+    rows.push([formatCsvCell('TECHNICAL ASSESSMENT - ALL CANDIDATE SUBMISSIONS EXPORT')]);
+    rows.push([formatCsvCell('Examination Title:'), formatCsvCell(testTitle || 'Technical Assessment 2026')]);
+    rows.push([formatCsvCell('Total Submissions Recorded:'), formatCsvCell(testSubs.length)]);
+    rows.push([formatCsvCell('Export Date:'), formatCsvCell(new Date().toLocaleString())]);
     rows.push([]);
     rows.push([
-      csvCell('#'),
-      csvCell('Register Number'),
-      csvCell('Candidate Name'),
-      csvCell('Department'),
-      csvCell('Section'),
-      csvCell('Obtained Marks'),
-      csvCell('Total Marks'),
-      csvCell('Percentage (%)'),
-      csvCell('Time Taken'),
-      csvCell('Security Warnings'),
-      csvCell('Submission Date & Time')
+      formatCsvCell('#'),
+      formatCsvCell('Register Number'),
+      formatCsvCell('Candidate Name'),
+      formatCsvCell('Department'),
+      formatCsvCell('Section'),
+      formatCsvCell('Obtained Marks'),
+      formatCsvCell('Total Marks'),
+      formatCsvCell('Percentage (%)'),
+      formatCsvCell('Time Taken'),
+      formatCsvCell('Security Warnings'),
+      formatCsvCell('Submission Date & Time')
     ]);
 
     testSubs.forEach((sub, idx) => {
@@ -3059,53 +3136,29 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
       const warnStatus = warnCount >= 3 ? `${warnCount} (Terminated)` : `${warnCount}`;
 
       rows.push([
-        csvCell(idx + 1),
-        csvCell(sub.reg_no),
-        csvCell(sub.student_name),
-        csvCell(sub.department),
-        csvCell(sub.section),
-        csvCell(sub.obtained_marks),
-        csvCell(sub.total_marks),
-        csvCell(`${sub.percentage}%`),
-        csvCell(timeFormatted),
-        csvCell(warnStatus),
-        csvCell(new Date(sub.submitted_at).toLocaleString())
+        formatCsvCell(idx + 1),
+        formatCsvCell(sub.reg_no),
+        formatCsvCell(sub.student_name),
+        formatCsvCell(sub.department),
+        formatCsvCell(sub.section),
+        formatCsvCell(sub.obtained_marks),
+        formatCsvCell(sub.total_marks),
+        formatCsvCell(`${sub.percentage}%`),
+        formatCsvCell(timeFormatted),
+        formatCsvCell(warnStatus),
+        formatCsvCell(new Date(sub.submitted_at).toLocaleString())
       ]);
     });
 
-    // Summary Statistics Calculations
-    const totalEnrolled = state.allStudents.length;
-    const totalAttended = testSubs.length;
-    const passedSubs = testSubs.filter(sub => {
-      const pct = parseFloat(sub.percentage);
-      if (!isNaN(pct)) return pct >= 50;
-      const obt = Number(sub.obtained_marks) || 0;
-      const tot = Number(sub.total_marks) || 0;
-      return tot > 0 ? (obt / tot) >= 0.5 : false;
-    });
-    const totalPassed = passedSubs.length;
-    const passPercentage = totalAttended > 0 ? ((totalPassed / totalAttended) * 100).toFixed(2) : '0.00';
+    const stats = computeSummaryStatistics(testSubs, state.allStudents.length);
 
-    let markAverageDisplay = '0.00';
-    if (totalAttended > 0) {
-      const sumMarks = testSubs.reduce((acc, curr) => acc + (Number(curr.obtained_marks) || 0), 0);
-      const avgMarks = (sumMarks / totalAttended).toFixed(2);
-      const sumPct = testSubs.reduce((acc, curr) => acc + (parseFloat(curr.percentage) || 0), 0);
-      const avgPct = (sumPct / totalAttended).toFixed(2);
-      const sampleTotalMarks = testSubs[0]?.total_marks || (state.questions ? state.questions.length : 0);
-      markAverageDisplay = `${avgMarks} / ${sampleTotalMarks} (${avgPct}%)`;
-    }
-
-    // Append Summary Statistics rows at the bottom of the CSV
+    // Bottom centered summary without header wordings
     rows.push([]);
-    rows.push([csvCell('------------------------------------------------------------')]);
-    rows.push([csvCell('EXAMINATION CONSOLIDATED PERFORMANCE SUMMARY')]);
-    rows.push([csvCell('------------------------------------------------------------')]);
-    rows.push([csvCell('TOTAL STUDENTS:'), csvCell(totalEnrolled)]);
-    rows.push([csvCell('TOTAL STUDENTS ATTENDED:'), csvCell(totalAttended)]);
-    rows.push([csvCell('TOTAL PASSED STUDENTS:'), csvCell(totalPassed)]);
-    rows.push([csvCell('PASS PERCENTAGE:'), csvCell(`${passPercentage}%`)]);
-    rows.push([csvCell('MARK AVERAGE:'), csvCell(markAverageDisplay)]);
+    rows.push([formatCsvCell(''), formatCsvCell(''), formatCsvCell(''), formatCsvCell(''), formatCsvCell('TOTAL STUDENTS:'), formatCsvCell(stats.totalEnrolled)]);
+    rows.push([formatCsvCell(''), formatCsvCell(''), formatCsvCell(''), formatCsvCell(''), formatCsvCell('TOTAL STUDENTS ATTENDED:'), formatCsvCell(stats.totalAttended)]);
+    rows.push([formatCsvCell(''), formatCsvCell(''), formatCsvCell(''), formatCsvCell(''), formatCsvCell('TOTAL PASSED STUDENTS:'), formatCsvCell(stats.totalPassed)]);
+    rows.push([formatCsvCell(''), formatCsvCell(''), formatCsvCell(''), formatCsvCell(''), formatCsvCell('PASS PERCENTAGE:'), formatCsvCell(`${stats.passPercentage}%`)]);
+    rows.push([formatCsvCell(''), formatCsvCell(''), formatCsvCell(''), formatCsvCell(''), formatCsvCell('MARK AVERAGE:'), formatCsvCell(stats.markAverageDisplay)]);
 
     const csvContent = rows.map(r => r.join(',')).join('\r\n');
     const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -3123,7 +3176,213 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
     }, 200);
   }
 
-  // Download Section-Specific Report as CSV file
+  // 2. Download All Submissions as Excel (.XLSX)
+  function downloadAllSubmissionsExcel() {
+    const analyzingTest = getAnalyzingTest();
+    const testSubs = (analyzingTest && Array.isArray(analyzingTest.submissions))
+      ? analyzingTest.submissions
+      : state.submissions;
+    const testTitle = analyzingTest ? analyzingTest.title : state.testTitle;
+
+    if (!testSubs || testSubs.length === 0) {
+      alert(`No student submissions found to export for "${testTitle}".`);
+      return;
+    }
+
+    if (typeof XLSX === 'undefined') {
+      alert('Excel export engine is initializing. Please wait a moment or export as CSV.');
+      return;
+    }
+
+    const rows = [
+      ['TECHNICAL ASSESSMENT - ALL CANDIDATE SUBMISSIONS EXPORT'],
+      ['Examination Title:', testTitle || 'Technical Assessment 2026'],
+      ['Total Submissions Recorded:', testSubs.length],
+      ['Export Date:', new Date().toLocaleString()],
+      [],
+      [
+        '#',
+        'Register Number',
+        'Candidate Name',
+        'Department',
+        'Section',
+        'Obtained Marks',
+        'Total Marks',
+        'Percentage (%)',
+        'Time Taken',
+        'Security Warnings',
+        'Submission Date & Time'
+      ]
+    ];
+
+    testSubs.forEach((sub, idx) => {
+      let timeFormatted = 'N/A';
+      if (sub.time_taken_seconds !== undefined) {
+        const mins = Math.floor(sub.time_taken_seconds / 60);
+        const secs = sub.time_taken_seconds % 60;
+        timeFormatted = `${mins}m ${secs}s`;
+      }
+
+      const warnCount = Number(sub.warning_count) || 0;
+      const warnStatus = warnCount >= 3 ? `${warnCount} (Terminated)` : `${warnCount}`;
+
+      rows.push([
+        idx + 1,
+        sub.reg_no,
+        sub.student_name,
+        sub.department,
+        sub.section,
+        Number(sub.obtained_marks) || 0,
+        Number(sub.total_marks) || 0,
+        `${sub.percentage}%`,
+        timeFormatted,
+        warnStatus,
+        new Date(sub.submitted_at).toLocaleString()
+      ]);
+    });
+
+    const stats = computeSummaryStatistics(testSubs, state.allStudents.length);
+
+    // Centered Summary Rows
+    rows.push([]);
+    rows.push(['', '', '', '', 'TOTAL STUDENTS:', stats.totalEnrolled]);
+    rows.push(['', '', '', '', 'TOTAL STUDENTS ATTENDED:', stats.totalAttended]);
+    rows.push(['', '', '', '', 'TOTAL PASSED STUDENTS:', stats.totalPassed]);
+    rows.push(['', '', '', '', 'PASS PERCENTAGE:', `${stats.passPercentage}%`]);
+    rows.push(['', '', '', '', 'MARK AVERAGE:', stats.markAverageDisplay]);
+
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [
+      { wch: 6 },
+      { wch: 18 },
+      { wch: 28 },
+      { wch: 16 },
+      { wch: 26 },
+      { wch: 26 },
+      { wch: 14 },
+      { wch: 16 },
+      { wch: 14 },
+      { wch: 18 },
+      { wch: 24 }
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Submissions');
+    const safeTitle = (testTitle || 'Assessment').replace(/[^a-zA-Z0-9]/g, '_');
+    XLSX.writeFile(wb, `${safeTitle}_Submissions_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  }
+
+  // 3. Download All Submissions as PDF (.PDF)
+  function downloadAllSubmissionsPDF() {
+    const analyzingTest = getAnalyzingTest();
+    const testSubs = (analyzingTest && Array.isArray(analyzingTest.submissions))
+      ? analyzingTest.submissions
+      : state.submissions;
+    const testTitle = analyzingTest ? analyzingTest.title : state.testTitle;
+
+    if (!testSubs || testSubs.length === 0) {
+      alert(`No student submissions found to export for "${testTitle}".`);
+      return;
+    }
+
+    const stats = computeSummaryStatistics(testSubs, state.allStudents.length);
+    const summaryList = [
+      ['TOTAL STUDENTS:', stats.totalEnrolled],
+      ['TOTAL STUDENTS ATTENDED:', stats.totalAttended],
+      ['TOTAL PASSED STUDENTS:', stats.totalPassed],
+      ['PASS PERCENTAGE:', `${stats.passPercentage}%`],
+      ['MARK AVERAGE:', stats.markAverageDisplay]
+    ];
+
+    const tableHeaders = ['#', 'Reg No', 'Candidate Name', 'Dept', 'Sec', 'Score', 'Total', 'Pct', 'Time', 'Warnings', 'Submitted At'];
+    const tableData = testSubs.map((sub, idx) => {
+      let timeFormatted = 'N/A';
+      if (sub.time_taken_seconds !== undefined) {
+        const mins = Math.floor(sub.time_taken_seconds / 60);
+        const secs = sub.time_taken_seconds % 60;
+        timeFormatted = `${mins}m ${secs}s`;
+      }
+      const warnCount = Number(sub.warning_count) || 0;
+      const warnStatus = warnCount >= 3 ? `${warnCount} (Term)` : `${warnCount}`;
+
+      return [
+        idx + 1,
+        sub.reg_no,
+        sub.student_name,
+        sub.department,
+        sub.section,
+        sub.obtained_marks,
+        sub.total_marks,
+        `${sub.percentage}%`,
+        timeFormatted,
+        warnStatus,
+        new Date(sub.submitted_at).toLocaleDateString() + ' ' + new Date(sub.submitted_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      ];
+    });
+
+    if (window.jspdf && window.jspdf.jsPDF) {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+
+      doc.setFontSize(15);
+      doc.setTextColor(15, 23, 42);
+      doc.text('TECHNICAL ASSESSMENT - ALL CANDIDATE SUBMISSIONS', 40, 38);
+
+      doc.setFontSize(9.5);
+      doc.setTextColor(100, 116, 139);
+      doc.text(`Examination: ${testTitle || 'Technical Assessment 2026'}   |   Total Candidates: ${testSubs.length}   |   Exported: ${new Date().toLocaleString()}`, 40, 54);
+
+      doc.autoTable({
+        head: [tableHeaders],
+        body: tableData,
+        startY: 68,
+        styles: { fontSize: 8, cellPadding: 3.5 },
+        headStyles: { fillColor: [37, 99, 235], textColor: [255, 255, 255], fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        theme: 'grid',
+        margin: { left: 40, right: 40 }
+      });
+
+      const finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY + 16 : 300;
+      const pageHeight = doc.internal.pageSize.getHeight();
+      let currentY = finalY;
+
+      if (finalY + 120 > pageHeight) {
+        doc.addPage();
+        currentY = 40;
+      }
+
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const tableWidth = 320;
+      const startX = (pageWidth - tableWidth) / 2;
+
+      doc.autoTable({
+        body: summaryList,
+        startY: currentY,
+        margin: { left: startX },
+        tableWidth: tableWidth,
+        styles: { fontSize: 9, cellPadding: 4 },
+        columnStyles: {
+          0: { fontStyle: 'bold', halign: 'left', fillColor: [241, 245, 249], cellWidth: 190 },
+          1: { halign: 'center', fontStyle: 'bold', textColor: [37, 99, 235], cellWidth: 130 }
+        },
+        theme: 'plain'
+      });
+
+      const safeTitle = (testTitle || 'Assessment').replace(/[^a-zA-Z0-9]/g, '_');
+      doc.save(`${safeTitle}_Submissions_${new Date().toISOString().slice(0, 10)}.pdf`);
+    } else {
+      renderFallbackPrintReport(
+        'Technical Assessment - All Submissions Report',
+        `Examination: ${testTitle || 'Technical Assessment 2026'} | Total: ${testSubs.length} | Export Date: ${new Date().toLocaleString()}`,
+        tableHeaders,
+        tableData,
+        summaryList
+      );
+    }
+  }
+
+  // 4. Download Section Report as CSV file (Centered summary, no summary header wordings)
   function downloadSectionReportCSV(sec) {
     const analyzingTest = getAnalyzingTest();
     const testSubs = (analyzingTest && Array.isArray(analyzingTest.submissions))
@@ -3143,34 +3402,28 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
       subMap.set(sub.reg_no.toUpperCase(), sub);
     });
 
-    function csvCell(val) {
-      if (val === null || val === undefined) return '""';
-      const clean = String(val).replace(/"/g, '""');
-      return `"${clean}"`;
-    }
-
     const rows = [];
-    rows.push([csvCell(`TECHNICAL ASSESSMENT - SECTION ${sec} CANDIDATE PERFORMANCE REPORT`)]);
-    rows.push([csvCell('Examination Title:'), csvCell(testTitle || 'Technical Assessment 2026')]);
-    rows.push([csvCell('Section:'), csvCell(`Section ${sec}`)]);
-    rows.push([csvCell('Total Enrolled Students:'), csvCell(enrolledStudents.length)]);
-    rows.push([csvCell('Completed Submissions:'), csvCell(completedSubs.length)]);
-    rows.push([csvCell('Pending Candidates:'), csvCell(enrolledStudents.length - completedSubs.length)]);
-    rows.push([csvCell('Export Date:'), csvCell(new Date().toLocaleString())]);
+    rows.push([formatCsvCell(`TECHNICAL ASSESSMENT - SECTION ${sec} CANDIDATE PERFORMANCE REPORT`)]);
+    rows.push([formatCsvCell('Examination Title:'), formatCsvCell(testTitle || 'Technical Assessment 2026')]);
+    rows.push([formatCsvCell('Section:'), formatCsvCell(`Section ${sec}`)]);
+    rows.push([formatCsvCell('Total Enrolled Students:'), formatCsvCell(enrolledStudents.length)]);
+    rows.push([formatCsvCell('Completed Submissions:'), formatCsvCell(completedSubs.length)]);
+    rows.push([formatCsvCell('Pending Candidates:'), formatCsvCell(enrolledStudents.length - completedSubs.length)]);
+    rows.push([formatCsvCell('Export Date:'), formatCsvCell(new Date().toLocaleString())]);
     rows.push([]);
     rows.push([
-      csvCell('#'),
-      csvCell('Register Number'),
-      csvCell('Candidate Name'),
-      csvCell('Department'),
-      csvCell('Section'),
-      csvCell('Status'),
-      csvCell('Obtained Marks'),
-      csvCell('Total Marks'),
-      csvCell('Percentage (%)'),
-      csvCell('Time Taken'),
-      csvCell('Security Warnings'),
-      csvCell('Submission Date & Time')
+      formatCsvCell('#'),
+      formatCsvCell('Register Number'),
+      formatCsvCell('Candidate Name'),
+      formatCsvCell('Department'),
+      formatCsvCell('Section'),
+      formatCsvCell('Status'),
+      formatCsvCell('Obtained Marks'),
+      formatCsvCell('Total Marks'),
+      formatCsvCell('Percentage (%)'),
+      formatCsvCell('Time Taken'),
+      formatCsvCell('Security Warnings'),
+      formatCsvCell('Submission Date & Time')
     ]);
 
     enrolledStudents.forEach((s, idx) => {
@@ -3191,54 +3444,30 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
       }
 
       rows.push([
-        csvCell(idx + 1),
-        csvCell(s.reg_no),
-        csvCell(s.name),
-        csvCell(s.department),
-        csvCell(s.section),
-        csvCell(isCompleted ? 'Completed' : 'Pending'),
-        csvCell(isCompleted ? sub.obtained_marks : '—'),
-        csvCell(isCompleted ? sub.total_marks : '—'),
-        csvCell(isCompleted ? `${sub.percentage}%` : '—'),
-        csvCell(timeFormatted),
-        csvCell(warnCell),
-        csvCell(isCompleted ? new Date(sub.submitted_at).toLocaleString() : 'Not Attempted')
+        formatCsvCell(idx + 1),
+        formatCsvCell(s.reg_no),
+        formatCsvCell(s.name),
+        formatCsvCell(s.department),
+        formatCsvCell(s.section),
+        formatCsvCell(isCompleted ? 'Completed' : 'Pending'),
+        formatCsvCell(isCompleted ? sub.obtained_marks : '—'),
+        formatCsvCell(isCompleted ? sub.total_marks : '—'),
+        formatCsvCell(isCompleted ? `${sub.percentage}%` : '—'),
+        formatCsvCell(timeFormatted),
+        formatCsvCell(warnCell),
+        formatCsvCell(isCompleted ? new Date(sub.submitted_at).toLocaleString() : 'Not Attempted')
       ]);
     });
 
-    // Summary Statistics Calculations for Section
-    const totalEnrolled = enrolledStudents.length;
-    const totalAttended = completedSubs.length;
-    const passedSubs = completedSubs.filter(sub => {
-      const pct = parseFloat(sub.percentage);
-      if (!isNaN(pct)) return pct >= 50;
-      const obt = Number(sub.obtained_marks) || 0;
-      const tot = Number(sub.total_marks) || 0;
-      return tot > 0 ? (obt / tot) >= 0.5 : false;
-    });
-    const totalPassed = passedSubs.length;
-    const passPercentage = totalAttended > 0 ? ((totalPassed / totalAttended) * 100).toFixed(2) : '0.00';
+    const stats = computeSummaryStatistics(completedSubs, enrolledStudents.length);
 
-    let markAverageDisplay = '0.00';
-    if (totalAttended > 0) {
-      const sumMarks = completedSubs.reduce((acc, curr) => acc + (Number(curr.obtained_marks) || 0), 0);
-      const avgMarks = (sumMarks / totalAttended).toFixed(2);
-      const sumPct = completedSubs.reduce((acc, curr) => acc + (parseFloat(curr.percentage) || 0), 0);
-      const avgPct = (sumPct / totalAttended).toFixed(2);
-      const sampleTotalMarks = completedSubs[0]?.total_marks || (state.questions ? state.questions.length : 0);
-      markAverageDisplay = `${avgMarks} / ${sampleTotalMarks} (${avgPct}%)`;
-    }
-
-    // Append Summary Statistics rows at the bottom of the CSV
+    // Bottom centered summary without header wordings
     rows.push([]);
-    rows.push([csvCell('------------------------------------------------------------')]);
-    rows.push([csvCell(`SECTION ${sec} PERFORMANCE SUMMARY`)]);
-    rows.push([csvCell('------------------------------------------------------------')]);
-    rows.push([csvCell('TOTAL STUDENTS:'), csvCell(totalEnrolled)]);
-    rows.push([csvCell('TOTAL STUDENTS ATTENDED:'), csvCell(totalAttended)]);
-    rows.push([csvCell('TOTAL PASSED STUDENTS:'), csvCell(totalPassed)]);
-    rows.push([csvCell('PASS PERCENTAGE:'), csvCell(`${passPercentage}%`)]);
-    rows.push([csvCell('MARK AVERAGE:'), csvCell(markAverageDisplay)]);
+    rows.push([formatCsvCell(''), formatCsvCell(''), formatCsvCell(''), formatCsvCell(''), formatCsvCell('TOTAL STUDENTS:'), formatCsvCell(stats.totalEnrolled)]);
+    rows.push([formatCsvCell(''), formatCsvCell(''), formatCsvCell(''), formatCsvCell(''), formatCsvCell('TOTAL STUDENTS ATTENDED:'), formatCsvCell(stats.totalAttended)]);
+    rows.push([formatCsvCell(''), formatCsvCell(''), formatCsvCell(''), formatCsvCell(''), formatCsvCell('TOTAL PASSED STUDENTS:'), formatCsvCell(stats.totalPassed)]);
+    rows.push([formatCsvCell(''), formatCsvCell(''), formatCsvCell(''), formatCsvCell(''), formatCsvCell('PASS PERCENTAGE:'), formatCsvCell(`${stats.passPercentage}%`)]);
+    rows.push([formatCsvCell(''), formatCsvCell(''), formatCsvCell(''), formatCsvCell(''), formatCsvCell('MARK AVERAGE:'), formatCsvCell(stats.markAverageDisplay)]);
 
     const csvContent = rows.map(r => r.join(',')).join('\r\n');
     const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -3254,6 +3483,308 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
     }, 200);
+  }
+
+  // 5. Download Section Report as Excel (.XLSX)
+  function downloadSectionReportExcel(sec) {
+    const analyzingTest = getAnalyzingTest();
+    const testSubs = (analyzingTest && Array.isArray(analyzingTest.submissions))
+      ? analyzingTest.submissions
+      : state.submissions;
+    const testTitle = analyzingTest ? analyzingTest.title : state.testTitle;
+
+    const enrolledStudents = state.allStudents.filter(s => s.section === sec);
+    if (enrolledStudents.length === 0) {
+      alert(`No students found for Section ${sec}.`);
+      return;
+    }
+
+    if (typeof XLSX === 'undefined') {
+      alert('Excel export engine is initializing. Please wait a moment or export as CSV.');
+      return;
+    }
+
+    const completedSubs = testSubs.filter(s => s.section === sec);
+    const subMap = new Map();
+    completedSubs.forEach(sub => {
+      subMap.set(sub.reg_no.toUpperCase(), sub);
+    });
+
+    const rows = [
+      [`TECHNICAL ASSESSMENT - SECTION ${sec} CANDIDATE PERFORMANCE REPORT`],
+      ['Examination Title:', testTitle || 'Technical Assessment 2026'],
+      ['Section:', `Section ${sec}`],
+      ['Total Enrolled Students:', enrolledStudents.length],
+      ['Completed Submissions:', completedSubs.length],
+      ['Pending Candidates:', enrolledStudents.length - completedSubs.length],
+      ['Export Date:', new Date().toLocaleString()],
+      [],
+      [
+        '#',
+        'Register Number',
+        'Candidate Name',
+        'Department',
+        'Section',
+        'Status',
+        'Obtained Marks',
+        'Total Marks',
+        'Percentage (%)',
+        'Time Taken',
+        'Security Warnings',
+        'Submission Date & Time'
+      ]
+    ];
+
+    enrolledStudents.forEach((s, idx) => {
+      const sub = subMap.get(s.reg_no.toUpperCase());
+      const isCompleted = !!sub;
+
+      let timeFormatted = '—';
+      if (isCompleted && sub.time_taken_seconds !== undefined) {
+        const mins = Math.floor(sub.time_taken_seconds / 60);
+        const secs = sub.time_taken_seconds % 60;
+        timeFormatted = `${mins}m ${secs}s`;
+      }
+
+      let warnCell = '—';
+      if (isCompleted) {
+        const warnCount = Number(sub.warning_count) || 0;
+        warnCell = warnCount >= 3 ? `${warnCount} (Terminated)` : `${warnCount}`;
+      }
+
+      rows.push([
+        idx + 1,
+        s.reg_no,
+        s.name,
+        s.department,
+        s.section,
+        isCompleted ? 'Completed' : 'Pending',
+        isCompleted ? (Number(sub.obtained_marks) || 0) : '—',
+        isCompleted ? (Number(sub.total_marks) || 0) : '—',
+        isCompleted ? `${sub.percentage}%` : '—',
+        timeFormatted,
+        warnCell,
+        isCompleted ? new Date(sub.submitted_at).toLocaleString() : 'Not Attempted'
+      ]);
+    });
+
+    const stats = computeSummaryStatistics(completedSubs, enrolledStudents.length);
+
+    // Centered Summary Rows
+    rows.push([]);
+    rows.push(['', '', '', '', 'TOTAL STUDENTS:', stats.totalEnrolled]);
+    rows.push(['', '', '', '', 'TOTAL STUDENTS ATTENDED:', stats.totalAttended]);
+    rows.push(['', '', '', '', 'TOTAL PASSED STUDENTS:', stats.totalPassed]);
+    rows.push(['', '', '', '', 'PASS PERCENTAGE:', `${stats.passPercentage}%`]);
+    rows.push(['', '', '', '', 'MARK AVERAGE:', stats.markAverageDisplay]);
+
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [
+      { wch: 6 },
+      { wch: 18 },
+      { wch: 28 },
+      { wch: 16 },
+      { wch: 26 },
+      { wch: 26 },
+      { wch: 16 },
+      { wch: 14 },
+      { wch: 16 },
+      { wch: 14 },
+      { wch: 18 },
+      { wch: 24 }
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, `Section_${sec}`);
+    const safeTitle = (testTitle || 'Assessment').replace(/[^a-zA-Z0-9]/g, '_');
+    XLSX.writeFile(wb, `Section_${sec}_${safeTitle}_Report_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  }
+
+  // 6. Download Section Report as PDF (.PDF)
+  function downloadSectionReportPDF(sec) {
+    const analyzingTest = getAnalyzingTest();
+    const testSubs = (analyzingTest && Array.isArray(analyzingTest.submissions))
+      ? analyzingTest.submissions
+      : state.submissions;
+    const testTitle = analyzingTest ? analyzingTest.title : state.testTitle;
+
+    const enrolledStudents = state.allStudents.filter(s => s.section === sec);
+    if (enrolledStudents.length === 0) {
+      alert(`No students found for Section ${sec}.`);
+      return;
+    }
+
+    const completedSubs = testSubs.filter(s => s.section === sec);
+    const subMap = new Map();
+    completedSubs.forEach(sub => {
+      subMap.set(sub.reg_no.toUpperCase(), sub);
+    });
+
+    const stats = computeSummaryStatistics(completedSubs, enrolledStudents.length);
+    const summaryList = [
+      ['TOTAL STUDENTS:', stats.totalEnrolled],
+      ['TOTAL STUDENTS ATTENDED:', stats.totalAttended],
+      ['TOTAL PASSED STUDENTS:', stats.totalPassed],
+      ['PASS PERCENTAGE:', `${stats.passPercentage}%`],
+      ['MARK AVERAGE:', stats.markAverageDisplay]
+    ];
+
+    const tableHeaders = ['#', 'Reg No', 'Candidate Name', 'Dept', 'Sec', 'Status', 'Score', 'Total', 'Pct', 'Time', 'Warnings', 'Submitted At'];
+    const tableData = enrolledStudents.map((s, idx) => {
+      const sub = subMap.get(s.reg_no.toUpperCase());
+      const isCompleted = !!sub;
+
+      let timeFormatted = '—';
+      if (isCompleted && sub.time_taken_seconds !== undefined) {
+        const mins = Math.floor(sub.time_taken_seconds / 60);
+        const secs = sub.time_taken_seconds % 60;
+        timeFormatted = `${mins}m ${secs}s`;
+      }
+
+      let warnCell = '—';
+      if (isCompleted) {
+        const warnCount = Number(sub.warning_count) || 0;
+        warnCell = warnCount >= 3 ? `${warnCount} (Term)` : `${warnCount}`;
+      }
+
+      return [
+        idx + 1,
+        s.reg_no,
+        s.name,
+        s.department,
+        s.section,
+        isCompleted ? 'Completed' : 'Pending',
+        isCompleted ? sub.obtained_marks : '—',
+        isCompleted ? sub.total_marks : '—',
+        isCompleted ? `${sub.percentage}%` : '—',
+        timeFormatted,
+        warnCell,
+        isCompleted ? (new Date(sub.submitted_at).toLocaleDateString() + ' ' + new Date(sub.submitted_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })) : 'Not Attempted'
+      ];
+    });
+
+    if (window.jspdf && window.jspdf.jsPDF) {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+
+      doc.setFontSize(15);
+      doc.setTextColor(15, 23, 42);
+      doc.text(`TECHNICAL ASSESSMENT - SECTION ${sec} CANDIDATE REPORT`, 40, 38);
+
+      doc.setFontSize(9.5);
+      doc.setTextColor(100, 116, 139);
+      doc.text(`Examination: ${testTitle || 'Technical Assessment 2026'}   |   Section ${sec} (${enrolledStudents.length} Students)   |   Exported: ${new Date().toLocaleString()}`, 40, 54);
+
+      doc.autoTable({
+        head: [tableHeaders],
+        body: tableData,
+        startY: 68,
+        styles: { fontSize: 8, cellPadding: 3.5 },
+        headStyles: { fillColor: [37, 99, 235], textColor: [255, 255, 255], fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        theme: 'grid',
+        margin: { left: 40, right: 40 }
+      });
+
+      const finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY + 16 : 300;
+      const pageHeight = doc.internal.pageSize.getHeight();
+      let currentY = finalY;
+
+      if (finalY + 120 > pageHeight) {
+        doc.addPage();
+        currentY = 40;
+      }
+
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const tableWidth = 320;
+      const startX = (pageWidth - tableWidth) / 2;
+
+      doc.autoTable({
+        body: summaryList,
+        startY: currentY,
+        margin: { left: startX },
+        tableWidth: tableWidth,
+        styles: { fontSize: 9, cellPadding: 4 },
+        columnStyles: {
+          0: { fontStyle: 'bold', halign: 'left', fillColor: [241, 245, 249], cellWidth: 190 },
+          1: { halign: 'center', fontStyle: 'bold', textColor: [37, 99, 235], cellWidth: 130 }
+        },
+        theme: 'plain'
+      });
+
+      const safeTitle = (testTitle || 'Assessment').replace(/[^a-zA-Z0-9]/g, '_');
+      doc.save(`Section_${sec}_${safeTitle}_Report_${new Date().toISOString().slice(0, 10)}.pdf`);
+    } else {
+      renderFallbackPrintReport(
+        `Technical Assessment - Section ${sec} Report`,
+        `Examination: ${testTitle || 'Technical Assessment 2026'} | Section: Section ${sec} | Export Date: ${new Date().toLocaleString()}`,
+        tableHeaders,
+        tableData,
+        summaryList
+      );
+    }
+  }
+
+  // 7. Universal fallback report printer (Native Browser PDF)
+  function renderFallbackPrintReport(title, subtitle, headers, rowsData, summaryList) {
+    const printWin = window.open('', '_blank');
+    if (!printWin) {
+      alert('Report popup window was blocked by your browser. Please allow popups or download Excel / CSV.');
+      return;
+    }
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <title>${title}</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 24px; color: #1e293b; font-size: 11px; }
+    h2 { margin: 0 0 4px 0; color: #0f172a; font-size: 16px; }
+    p.meta { margin: 0 0 16px 0; color: #64748b; font-size: 11px; }
+    table.data-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 10px; }
+    table.data-table th, table.data-table td { border: 1px solid #cbd5e1; padding: 5px 7px; text-align: left; }
+    table.data-table th { background: #2563eb; color: #ffffff; font-weight: 600; }
+    table.data-table tr:nth-child(even) { background: #f8fafc; }
+    .summary-box { margin: 20px auto; width: 340px; border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; }
+    .summary-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    .summary-table td { padding: 6px 12px; border-bottom: 1px solid #e2e8f0; }
+    .summary-table tr:last-child td { border-bottom: none; }
+    .summary-table td.label { font-weight: 600; color: #475569; background: #f8fafc; width: 60%; }
+    .summary-table td.val { text-align: center; font-weight: 700; color: #2563eb; width: 40%; }
+    @media print {
+      @page { size: landscape; margin: 10mm; }
+    }
+  </style>
+</head>
+<body>
+  <h2>${title}</h2>
+  <p class="meta">${subtitle}</p>
+  <table class="data-table">
+    <thead>
+      <tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>
+    </thead>
+    <tbody>
+      ${rowsData.map(r => `<tr>${r.map(c => `<td>${c !== undefined && c !== null ? c : ''}</td>`).join('')}</tr>`).join('')}
+    </tbody>
+  </table>
+  <div class="summary-box">
+    <table class="summary-table">
+      <tbody>
+        ${summaryList.map(item => `<tr><td class="label">${item[0]}</td><td class="val">${item[1]}</td></tr>`).join('')}
+      </tbody>
+    </table>
+  </div>
+  <script>
+    window.onload = function() {
+      setTimeout(function() {
+        window.print();
+      }, 300);
+    };
+  <\/script>
+</body>
+</html>`;
+    printWin.document.open();
+    printWin.document.write(html);
+    printWin.document.close();
   }
 
   // ========================================================

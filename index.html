@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Technical Assessment Portal 2026</title>
-  <link rel="stylesheet" href="style.css?v=13.0">
+  <link rel="stylesheet" href="style.css?v=14.0">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -585,14 +585,15 @@
             <p class="card-desc" style="margin-bottom: 0;">Click on any section card below to open its roster, inspect student statuses, or download section reports.</p>
           </div>
 
-          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-            <button type="button" class="btn-portal-primary" id="btn-download-all-submissions" style="padding: 9px 18px; font-size: 0.88rem;">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="7 10 12 15 17 10"></polyline>
-                <line x1="12" y1="15" x2="12" y2="3"></line>
-              </svg>
-              <span>Download All Submissions (.CSV)</span>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button type="button" class="btn-portal-primary" id="btn-download-all-excel" style="padding: 8px 14px; font-size: 0.85rem; background: #16a34a; border-color: #16a34a;" title="Export to Microsoft Excel (.XLSX)">
+              <span>📗 Excel (.XLSX)</span>
+            </button>
+            <button type="button" class="btn-portal-primary" id="btn-download-all-pdf" style="padding: 8px 14px; font-size: 0.85rem; background: #dc2626; border-color: #dc2626;" title="Export to Adobe PDF Document">
+              <span>📕 PDF (.PDF)</span>
+            </button>
+            <button type="button" class="btn-portal-secondary" id="btn-download-all-submissions" style="padding: 8px 14px; font-size: 0.85rem;" title="Export to Standard CSV">
+              <span>📄 CSV (.CSV)</span>
             </button>
           </div>
         </div>
@@ -626,18 +627,18 @@
               <p style="font-size: 0.84rem; color: #94a3b8; margin-bottom: 0;" id="drilldown-subtitle">Showing all 62 enrolled students and test submission statuses.</p>
             </div>
 
-            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-              <button type="button" class="btn-portal-secondary" id="btn-download-section-report" style="padding: 8px 16px; font-size: 0.85rem;">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                  <polyline points="7 10 12 15 17 10"></polyline>
-                  <line x1="12" y1="15" x2="12" y2="3"></line>
-                </svg>
-                <span id="btn-download-section-text">Download Section A Report (.CSV)</span>
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+              <button type="button" class="btn-portal-primary" id="btn-download-section-excel" style="padding: 7px 12px; font-size: 0.82rem; background: #16a34a; border-color: #16a34a;" title="Download Section Report in Excel">
+                <span>📗 Excel (.XLSX)</span>
               </button>
-
-              <button type="button" class="btn-portal-neutral" id="btn-close-drilldown" style="padding: 8px 14px; font-size: 0.85rem;">
-                <span>✕ Close Section</span>
+              <button type="button" class="btn-portal-primary" id="btn-download-section-pdf" style="padding: 7px 12px; font-size: 0.82rem; background: #dc2626; border-color: #dc2626;" title="Download Section Report in PDF">
+                <span>📕 PDF (.PDF)</span>
+              </button>
+              <button type="button" class="btn-portal-secondary" id="btn-download-section-report" style="padding: 7px 12px; font-size: 0.82rem;" title="Download Section Report in CSV">
+                <span id="btn-download-section-text">📄 CSV (.CSV)</span>
+              </button>
+              <button type="button" class="btn-portal-neutral" id="btn-close-drilldown" style="padding: 7px 12px; font-size: 0.82rem;">
+                <span>✕ Close</span>
               </button>
             </div>
           </div>
@@ -1112,12 +1113,15 @@
     </div>
   </div>
 
-  <!-- SheetJS CDN for robust Excel (.xlsx/.xls) and CSV parsing -->
+  <!-- SheetJS CDN for robust Excel (.xlsx/.xls) and CSV parsing & export -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- jsPDF & AutoTable CDN for Direct Client-Side PDF Generation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
   <!-- Application Scripts -->
-  <script src="supabase-config.js?v=13.0"></script>
-  <script src="questions.js?v=13.0"></script>
-  <script src="students.js?v=13.0"></script>
-  <script src="app.js?v=13.0"></script>
+  <script src="supabase-config.js?v=14.0"></script>
+  <script src="questions.js?v=14.0"></script>
+  <script src="students.js?v=14.0"></script>
+  <script src="app.js?v=14.0"></script>
 </body>
 </html>
