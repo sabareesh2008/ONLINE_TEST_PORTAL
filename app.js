@@ -1061,7 +1061,7 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
       let optionsDisplay = '';
       if (q.type === 'MCQ' && q.options) {
         optionsDisplay = `
-          <div style="font-size: 0.78rem; line-height: 1.4; color: #cbd5e1;">
+          <div style="font-size: 0.78rem; line-height: 1.4; color: #334155;">
             <div><strong>A:</strong> ${escapeHtml(q.options.A)}</div>
             <div><strong>B:</strong> ${escapeHtml(q.options.B)}</div>
             <div><strong>C:</strong> ${escapeHtml(q.options.C)}</div>
@@ -1077,11 +1077,11 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
           <td style="color: #64748b;">${idx + 1}</td>
           <td>${typeBadge}</td>
           <td><span class="badge-sec">${escapeHtml(q.category)}</span></td>
-          <td style="font-weight: 500; max-width: 320px;">${escapeHtml(q.question)}</td>
+          <td style="font-weight: 500; max-width: 320px; color: #0f172a;">${escapeHtml(q.question)}</td>
           <td>${optionsDisplay}</td>
-          <td><strong style="color: #10b981; font-family: monospace;">${escapeHtml(q.correctAnswer)}</strong></td>
+          <td><strong style="color: #16a34a; font-family: monospace;">${escapeHtml(q.correctAnswer)}</strong></td>
           <td style="text-align: center;">
-            <button type="button" class="btn-delete-q" data-idx="${idx}" style="background: rgba(239, 68, 68, 0.14); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 4px; color: #fca5a5; cursor: pointer; padding: 4px 8px; font-size: 0.84rem; transition: all 0.2s;" title="Delete this question">
+            <button type="button" class="btn-delete-q" data-idx="${idx}" style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; color: #dc2626; cursor: pointer; padding: 5px 10px; font-size: 0.84rem; transition: all 0.2s;" title="Delete this question">
               🗑️
             </button>
           </td>
@@ -1264,7 +1264,7 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
           return `
             <div class="mcq-option-card ${isSelected ? 'selected' : ''}" data-opt="${k}">
               <div class="option-badge">${k}</div>
-              <div style="font-size: 0.95rem; color: #f8fafc;">${escapeHtml(opts[k] || '')}</div>
+              <div style="font-size: 0.95rem; color: #0f172a; font-weight: 500;">${escapeHtml(opts[k] || '')}</div>
             </div>
           `;
         }).join('');
@@ -1602,7 +1602,7 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
 
     if (filtered.length === 0) {
       reviewCardsContainer.innerHTML = `
-        <div style="text-align: center; color: #94a3b8; padding: 32px 20px; background: #0f172a; border-radius: 8px; border: 1px solid #334155; margin-top: 10px;">
+        <div style="text-align: center; color: #64748b; padding: 32px 20px; background: #f8fafc; border-radius: 12px; border: 1.5px solid #e2e8f0; margin-top: 10px;">
           No questions found matching this filter (${filter}).
         </div>
       `;
@@ -1620,8 +1620,8 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
         answerComparisonHTML = `
           <div class="ans-row student-correct">
             <div>
-              <span style="font-size: 0.8rem; color: #6ee7b7; display: block; margin-bottom: 2px;">Your Answer:</span>
-              <strong>${escapeHtml(item.studentDisplay)}</strong>
+              <span style="font-size: 0.8rem; color: #15803d; font-weight: 700; display: block; margin-bottom: 2px;">Your Answer:</span>
+              <strong style="color: #0f172a;">${escapeHtml(item.studentDisplay)}</strong>
             </div>
             <span class="ans-tag correct">✔ Correct</span>
           </div>
@@ -1632,15 +1632,15 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
         answerComparisonHTML = `
           <div class="ans-row student-skipped">
             <div>
-              <span style="font-size: 0.8rem; color: #fcd34d; display: block; margin-bottom: 2px;">Your Answer:</span>
-              <em style="color: #cbd5e1;">(Candidate skipped this question)</em>
+              <span style="font-size: 0.8rem; color: #b45309; font-weight: 700; display: block; margin-bottom: 2px;">Your Answer:</span>
+              <em style="color: #64748b;">(Candidate skipped this question)</em>
             </div>
             <span class="ans-tag skipped">Skipped</span>
           </div>
           <div class="ans-row key-correct">
             <div>
-              <span style="font-size: 0.8rem; color: #6ee7b7; display: block; margin-bottom: 2px;">Official Correct Answer:</span>
-              <strong>${escapeHtml(item.correctDisplay || item.correctAnswer)}</strong>
+              <span style="font-size: 0.8rem; color: #15803d; font-weight: 700; display: block; margin-bottom: 2px;">Official Correct Answer:</span>
+              <strong style="color: #0f172a;">${escapeHtml(item.correctDisplay || item.correctAnswer)}</strong>
             </div>
             <span class="ans-tag correct">✔ Right Answer</span>
           </div>
@@ -1651,15 +1651,15 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
         answerComparisonHTML = `
           <div class="ans-row student-wrong">
             <div>
-              <span style="font-size: 0.8rem; color: #fca5a5; display: block; margin-bottom: 2px;">Your Answer:</span>
-              <strong>${escapeHtml(item.studentDisplay)}</strong>
+              <span style="font-size: 0.8rem; color: #b91c1c; font-weight: 700; display: block; margin-bottom: 2px;">Your Answer:</span>
+              <strong style="color: #0f172a;">${escapeHtml(item.studentDisplay)}</strong>
             </div>
             <span class="ans-tag wrong">✘ Incorrect</span>
           </div>
           <div class="ans-row key-correct">
             <div>
-              <span style="font-size: 0.8rem; color: #6ee7b7; display: block; margin-bottom: 2px;">Official Correct Answer:</span>
-              <strong>${escapeHtml(item.correctDisplay || item.correctAnswer)}</strong>
+              <span style="font-size: 0.8rem; color: #15803d; font-weight: 700; display: block; margin-bottom: 2px;">Official Correct Answer:</span>
+              <strong style="color: #0f172a;">${escapeHtml(item.correctDisplay || item.correctAnswer)}</strong>
             </div>
             <span class="ans-tag correct">✔ Right Answer</span>
           </div>
@@ -1669,11 +1669,11 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
       let optionsPreview = '';
       if (item.type === 'MCQ' && item.options) {
         optionsPreview = `
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; margin: 12px 0; font-size: 0.82rem; color: #cbd5e1;">
-            <div style="padding: 7px 12px; background: rgba(30, 41, 59, 0.7); border-radius: 6px; border: 1px solid rgba(51, 65, 85, 0.6);"><strong style="color:#60a5fa;">A:</strong> ${escapeHtml(item.options.A || '')}</div>
-            <div style="padding: 7px 12px; background: rgba(30, 41, 59, 0.7); border-radius: 6px; border: 1px solid rgba(51, 65, 85, 0.6);"><strong style="color:#60a5fa;">B:</strong> ${escapeHtml(item.options.B || '')}</div>
-            <div style="padding: 7px 12px; background: rgba(30, 41, 59, 0.7); border-radius: 6px; border: 1px solid rgba(51, 65, 85, 0.6);"><strong style="color:#60a5fa;">C:</strong> ${escapeHtml(item.options.C || '')}</div>
-            <div style="padding: 7px 12px; background: rgba(30, 41, 59, 0.7); border-radius: 6px; border: 1px solid rgba(51, 65, 85, 0.6);"><strong style="color:#60a5fa;">D:</strong> ${escapeHtml(item.options.D || '')}</div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; margin: 12px 0; font-size: 0.82rem; color: #334155;">
+            <div style="padding: 8px 12px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;"><strong style="color:#2563eb;">A:</strong> ${escapeHtml(item.options.A || '')}</div>
+            <div style="padding: 8px 12px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;"><strong style="color:#2563eb;">B:</strong> ${escapeHtml(item.options.B || '')}</div>
+            <div style="padding: 8px 12px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;"><strong style="color:#2563eb;">C:</strong> ${escapeHtml(item.options.C || '')}</div>
+            <div style="padding: 8px 12px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;"><strong style="color:#2563eb;">D:</strong> ${escapeHtml(item.options.D || '')}</div>
           </div>
         `;
       }
@@ -2182,7 +2182,7 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
     studentRosterTbody.innerHTML = filtered.map((s, idx) => `
       <tr>
         <td style="color: #64748b;">${idx + 1}</td>
-        <td><strong style="color: #f1f5f9; font-family: monospace;">${s.reg_no}</strong></td>
+        <td><strong style="color: #0f172a; font-family: monospace;">${s.reg_no}</strong></td>
         <td>${escapeHtml(s.name)}</td>
         <td>${escapeHtml(s.department)}</td>
         <td><span class="badge-sec">Sec ${escapeHtml(s.section)}</span></td>
@@ -2273,12 +2273,12 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
       return `
         <div class="stat-card section-card-interactive ${isActive ? 'active' : ''}" data-sec="${sec}" title="Click to open Section ${sec} student list and test submissions">
           <div class="stat-title" style="display: flex; justify-content: space-between; align-items: center;">
-            <strong style="color: #f1f5f9; font-size: 0.95rem;">Section ${sec} Progress</strong>
-            <span style="font-size: 0.82rem; font-weight: 700; color: ${pct === 100 ? '#10b981' : '#38bdf8'};">${pct}%</span>
+            <strong style="color: #0f172a; font-size: 0.95rem;">Section ${sec} Progress</strong>
+            <span style="font-size: 0.82rem; font-weight: 700; color: ${pct === 100 ? '#16a34a' : '#2563eb'};">${pct}%</span>
           </div>
           <div class="stat-value" style="font-size: 1.45rem; display: flex; align-items: baseline; gap: 8px; margin-top: 6px;">
-            <span>${completed} <span style="font-size: 0.88rem; color: #94a3b8; font-weight: normal;">/ ${enrolled}</span></span>
-            <span style="font-size: 0.78rem; color: ${completed > 0 ? '#10b981' : '#94a3b8'}; margin-left: auto;">${completed} Submitted</span>
+            <span>${completed} <span style="font-size: 0.88rem; color: #64748b; font-weight: normal;">/ ${enrolled}</span></span>
+            <span style="font-size: 0.78rem; font-weight: 600; color: ${completed > 0 ? '#16a34a' : '#94a3b8'}; margin-left: auto;">${completed} Submitted</span>
           </div>
           <div class="card-action-hint">
             <span>${isActive ? '▼ Viewing Section ' + sec + ' (Click to close)' : '📂 Open Section ' + sec + ' Roster →'}</span>
@@ -2389,18 +2389,18 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
       }
 
       const dateDisplay = isCompleted
-        ? `<span style="font-size: 0.82rem; color: #cbd5e1;">${new Date(sub.submitted_at).toLocaleString()}</span>`
-        : `<span style="color: #64748b; font-size: 0.82rem;">Not Attempted</span>`;
+        ? `<span style="font-size: 0.82rem; color: #475569;">${new Date(sub.submitted_at).toLocaleString()}</span>`
+        : `<span style="color: #94a3b8; font-size: 0.82rem;">Not Attempted</span>`;
 
       return `
         <tr>
           <td style="color: #64748b;">${idx + 1}</td>
-          <td><strong style="color: #f1f5f9; font-family: monospace;">${s.reg_no}</strong></td>
-          <td>${escapeHtml(s.name)}</td>
+          <td><strong style="color: #0f172a; font-family: monospace;">${s.reg_no}</strong></td>
+          <td style="font-weight: 500; color: #0f172a;">${escapeHtml(s.name)}</td>
           <td>${statusBadge}</td>
           <td>${scoreDisplay}</td>
           <td>${pctDisplay}</td>
-          <td style="color: #94a3b8; font-size: 0.84rem;">${timeFormatted}</td>
+          <td style="color: #64748b; font-size: 0.84rem;">${timeFormatted}</td>
           <td>${dateDisplay}</td>
         </tr>
       `;
@@ -2437,14 +2437,14 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
       return `
         <tr>
           <td style="color: #64748b;">${idx + 1}</td>
-          <td><strong style="color: #f1f5f9; font-family: monospace;">${sub.reg_no}</strong></td>
-          <td>${escapeHtml(sub.student_name)}</td>
+          <td><strong style="color: #0f172a; font-family: monospace;">${sub.reg_no}</strong></td>
+          <td style="font-weight: 500; color: #0f172a;">${escapeHtml(sub.student_name)}</td>
           <td>${escapeHtml(sub.department)}</td>
           <td><span class="badge-sec">Sec ${escapeHtml(sub.section)}</span></td>
-          <td><strong style="color: #10b981;">${sub.obtained_marks} / ${sub.total_marks}</strong></td>
-          <td><span style="font-weight: 700; color: ${parseFloat(sub.percentage) >= 50 ? '#10b981' : '#ef4444'};">${sub.percentage}%</span></td>
-          <td style="color: #94a3b8; font-size: 0.84rem;">${timeFormatted}</td>
-          <td style="color: #94a3b8; font-size: 0.82rem;">${new Date(sub.submitted_at).toLocaleString()}</td>
+          <td><strong style="color: #16a34a;">${sub.obtained_marks} / ${sub.total_marks}</strong></td>
+          <td><span style="font-weight: 700; color: ${parseFloat(sub.percentage) >= 50 ? '#16a34a' : '#dc2626'};">${sub.percentage}%</span></td>
+          <td style="color: #64748b; font-size: 0.84rem;">${timeFormatted}</td>
+          <td style="color: #64748b; font-size: 0.82rem;">${new Date(sub.submitted_at).toLocaleString()}</td>
         </tr>
       `;
     }).join('');
