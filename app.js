@@ -3197,7 +3197,7 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
     };
   }
 
-  // 1. Download Overall Section Summary Matrix as CSV file
+  // 1. Download Overall Section Summary Matrix as CSV file (Transposed: Sections as Columns, Metrics as Rows)
   function downloadSectionMatrixCSV() {
     const data = getSectionSummaryMatrixData();
     const rows = [];
@@ -3205,34 +3205,25 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
     rows.push([formatCsvCell('Examination Title:'), formatCsvCell(data.testTitle || 'Technical Assessment 2026')]);
     rows.push([formatCsvCell('Export Date:'), formatCsvCell(new Date().toLocaleString())]);
     rows.push([]);
-    rows.push([
-      formatCsvCell('Section'),
-      formatCsvCell('Total Students'),
-      formatCsvCell('Total Attended'),
-      formatCsvCell('Total Passed'),
-      formatCsvCell('Pass Percentage'),
-      formatCsvCell('Average Mark')
-    ]);
 
-    data.sectionRows.forEach(item => {
-      rows.push([
-        formatCsvCell(item.section),
-        formatCsvCell(item.enrolled),
-        formatCsvCell(item.attended),
-        formatCsvCell(item.passed),
-        formatCsvCell(item.passPercentage),
-        formatCsvCell(item.averageMark)
-      ]);
-    });
+    // Transposed Columns: Performance Metric | Section A | Section B | ... | OVERALL TOTAL
+    const headerCols = ['Performance Metric', ...data.sectionRows.map(s => s.section), data.overallRow.section];
+    rows.push(headerCols.map(c => formatCsvCell(c)));
 
-    rows.push([
-      formatCsvCell(data.overallRow.section),
-      formatCsvCell(data.overallRow.enrolled),
-      formatCsvCell(data.overallRow.attended),
-      formatCsvCell(data.overallRow.passed),
-      formatCsvCell(data.overallRow.passPercentage),
-      formatCsvCell(data.overallRow.averageMark)
-    ]);
+    const rStudents = ['Total Students', ...data.sectionRows.map(s => s.enrolled), data.overallRow.enrolled];
+    rows.push(rStudents.map(c => formatCsvCell(c)));
+
+    const rAttended = ['Total Attended', ...data.sectionRows.map(s => s.attended), data.overallRow.attended];
+    rows.push(rAttended.map(c => formatCsvCell(c)));
+
+    const rPassed = ['Total Passed', ...data.sectionRows.map(s => s.passed), data.overallRow.passed];
+    rows.push(rPassed.map(c => formatCsvCell(c)));
+
+    const rPassPct = ['Pass Percentage', ...data.sectionRows.map(s => s.passPercentage), data.overallRow.passPercentage];
+    rows.push(rPassPct.map(c => formatCsvCell(c)));
+
+    const rAvgMark = ['Average Mark', ...data.sectionRows.map(s => s.averageMark), data.overallRow.averageMark];
+    rows.push(rAvgMark.map(c => formatCsvCell(c)));
 
     const csvContent = rows.map(r => r.join(',')).join('\r\n');
     const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -3250,7 +3241,7 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
     }, 200);
   }
 
-  // 2. Download Overall Section Summary Matrix as Excel (.XLSX)
+  // 2. Download Overall Section Summary Matrix as Excel (.XLSX) (Transposed)
   function downloadSectionMatrixExcel() {
     const data = getSectionSummaryMatrixData();
     if (typeof XLSX === 'undefined') {
@@ -3258,50 +3249,32 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
       return;
     }
 
+    const headerCols = ['Performance Metric', ...data.sectionRows.map(s => s.section), data.overallRow.section];
+    const rStudents = ['Total Students', ...data.sectionRows.map(s => s.enrolled), data.overallRow.enrolled];
+    const rAttended = ['Total Attended', ...data.sectionRows.map(s => s.attended), data.overallRow.attended];
+    const rPassed = ['Total Passed', ...data.sectionRows.map(s => s.passed), data.overallRow.passed];
+    const rPassPct = ['Pass Percentage', ...data.sectionRows.map(s => s.passPercentage), data.overallRow.passPercentage];
+    const rAvgMark = ['Average Mark', ...data.sectionRows.map(s => s.averageMark), data.overallRow.averageMark];
+
     const rows = [
       ['TECHNICAL ASSESSMENT - OVERALL SECTION PERFORMANCE SUMMARY'],
       ['Examination Title:', data.testTitle || 'Technical Assessment 2026'],
       ['Export Date:', new Date().toLocaleString()],
       [],
-      [
-        'Section',
-        'Total Students',
-        'Total Attended',
-        'Total Passed',
-        'Pass Percentage',
-        'Average Mark'
-      ]
+      headerCols,
+      rStudents,
+      rAttended,
+      rPassed,
+      rPassPct,
+      rAvgMark
     ];
-
-    data.sectionRows.forEach(item => {
-      rows.push([
-        item.section,
-        item.enrolled,
-        item.attended,
-        item.passed,
-        item.passPercentage,
-        item.averageMark
-      ]);
-    });
-
-    rows.push([
-      data.overallRow.section,
-      data.overallRow.enrolled,
-      data.overallRow.attended,
-      data.overallRow.passed,
-      data.overallRow.passPercentage,
-      data.overallRow.averageMark
-    ]);
 
     const ws = XLSX.utils.aoa_to_sheet(rows);
-    ws['!cols'] = [
-      { wch: 18 },
-      { wch: 18 },
-      { wch: 18 },
-      { wch: 18 },
-      { wch: 18 },
-      { wch: 28 }
-    ];
+    const colWidths = [{ wch: 22 }];
+    for (let i = 1; i < headerCols.length; i++) {
+      colWidths.push({ wch: 22 });
+    }
+    ws['!cols'] = colWidths;
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Section Summary');
@@ -3309,53 +3282,51 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
     XLSX.writeFile(wb, `${safeTitle}_Overall_Section_Summary_${new Date().toISOString().slice(0, 10)}.xlsx`);
   }
 
-  // 3. Download Overall Section Summary Matrix as PDF (.PDF)
+  // 3. Download Overall Section Summary Matrix as PDF (.PDF) (Transposed)
   function downloadSectionMatrixPDF() {
     const data = getSectionSummaryMatrixData();
-    const tableHeaders = ['Section', 'Total Students', 'Total Attended', 'Total Passed', 'Pass Percentage', 'Average Mark'];
-    const tableData = data.sectionRows.map(item => [
-      item.section,
-      item.enrolled,
-      item.attended,
-      item.passed,
-      item.passPercentage,
-      item.averageMark
-    ]);
-    tableData.push([
-      data.overallRow.section,
-      data.overallRow.enrolled,
-      data.overallRow.attended,
-      data.overallRow.passed,
-      data.overallRow.passPercentage,
-      data.overallRow.averageMark
-    ]);
+    const headerCols = ['Performance Metric', ...data.sectionRows.map(s => s.section), data.overallRow.section];
+    const rStudents = ['Total Students', ...data.sectionRows.map(s => s.enrolled), data.overallRow.enrolled];
+    const rAttended = ['Total Attended', ...data.sectionRows.map(s => s.attended), data.overallRow.attended];
+    const rPassed = ['Total Passed', ...data.sectionRows.map(s => s.passed), data.overallRow.passed];
+    const rPassPct = ['Pass Percentage', ...data.sectionRows.map(s => s.passPercentage), data.overallRow.passPercentage];
+    const rAvgMark = ['Average Mark', ...data.sectionRows.map(s => s.averageMark), data.overallRow.averageMark];
+
+    const tableData = [
+      rStudents,
+      rAttended,
+      rPassed,
+      rPassPct,
+      rAvgMark
+    ];
 
     if (window.jspdf && window.jspdf.jsPDF) {
       const { jsPDF } = window.jspdf;
-      const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
 
       doc.setFontSize(16);
       doc.setTextColor(15, 23, 42);
       doc.text('OVERALL SECTION PERFORMANCE SUMMARY', 40, 42);
 
-      doc.setFontSize(9.5);
+      doc.setFontSize(10);
       doc.setTextColor(100, 116, 139);
       doc.text(`Examination: ${data.testTitle || 'Technical Assessment 2026'}   |   Exported: ${new Date().toLocaleString()}`, 40, 60);
 
       doc.autoTable({
-        head: [tableHeaders],
+        head: [headerCols],
         body: tableData,
         startY: 78,
-        styles: { fontSize: 9.5, cellPadding: 8, halign: 'center' },
+        styles: { fontSize: 9, cellPadding: 8, halign: 'center' },
         headStyles: { fillColor: [37, 99, 235], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center' },
         columnStyles: {
-          0: { halign: 'left', fontStyle: 'bold' }
+          0: { halign: 'left', fontStyle: 'bold', fillColor: [248, 250, 252], cellWidth: 125 }
         },
         didParseCell: function(cellData) {
-          if (cellData.row.index === tableData.length - 1) {
+          // Highlight the OVERALL TOTAL column (last column)
+          if (cellData.column.index === headerCols.length - 1 && cellData.section === 'body') {
             cellData.cell.styles.fontStyle = 'bold';
-            cellData.cell.styles.fillColor = [241, 245, 249];
-            cellData.cell.styles.textColor = [15, 23, 42];
+            cellData.cell.styles.textColor = [37, 99, 235];
+            cellData.cell.styles.fillColor = [239, 246, 255];
           }
         },
         theme: 'grid',
@@ -3368,7 +3339,7 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
       renderFallbackPrintReport(
         'Overall Section Performance Summary',
         `Examination: ${data.testTitle || 'Technical Assessment 2026'} | Exported: ${new Date().toLocaleString()}`,
-        tableHeaders,
+        headerCols,
         tableData,
         []
       );
