@@ -3073,6 +3073,40 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
       ]);
     });
 
+    // Summary Statistics Calculations
+    const totalEnrolled = state.allStudents.length;
+    const totalAttended = testSubs.length;
+    const passedSubs = testSubs.filter(sub => {
+      const pct = parseFloat(sub.percentage);
+      if (!isNaN(pct)) return pct >= 50;
+      const obt = Number(sub.obtained_marks) || 0;
+      const tot = Number(sub.total_marks) || 0;
+      return tot > 0 ? (obt / tot) >= 0.5 : false;
+    });
+    const totalPassed = passedSubs.length;
+    const passPercentage = totalAttended > 0 ? ((totalPassed / totalAttended) * 100).toFixed(2) : '0.00';
+
+    let markAverageDisplay = '0.00';
+    if (totalAttended > 0) {
+      const sumMarks = testSubs.reduce((acc, curr) => acc + (Number(curr.obtained_marks) || 0), 0);
+      const avgMarks = (sumMarks / totalAttended).toFixed(2);
+      const sumPct = testSubs.reduce((acc, curr) => acc + (parseFloat(curr.percentage) || 0), 0);
+      const avgPct = (sumPct / totalAttended).toFixed(2);
+      const sampleTotalMarks = testSubs[0]?.total_marks || (state.questions ? state.questions.length : 0);
+      markAverageDisplay = `${avgMarks} / ${sampleTotalMarks} (${avgPct}%)`;
+    }
+
+    // Append Summary Statistics rows at the bottom of the CSV
+    rows.push([]);
+    rows.push([csvCell('------------------------------------------------------------')]);
+    rows.push([csvCell('EXAMINATION CONSOLIDATED PERFORMANCE SUMMARY')]);
+    rows.push([csvCell('------------------------------------------------------------')]);
+    rows.push([csvCell('TOTAL STUDENTS:'), csvCell(totalEnrolled)]);
+    rows.push([csvCell('TOTAL STUDENTS ATTENDED:'), csvCell(totalAttended)]);
+    rows.push([csvCell('TOTAL PASSED STUDENTS:'), csvCell(totalPassed)]);
+    rows.push([csvCell('PASS PERCENTAGE:'), csvCell(`${passPercentage}%`)]);
+    rows.push([csvCell('MARK AVERAGE:'), csvCell(markAverageDisplay)]);
+
     const csvContent = rows.map(r => r.join(',')).join('\r\n');
     const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -3171,6 +3205,40 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
         csvCell(isCompleted ? new Date(sub.submitted_at).toLocaleString() : 'Not Attempted')
       ]);
     });
+
+    // Summary Statistics Calculations for Section
+    const totalEnrolled = enrolledStudents.length;
+    const totalAttended = completedSubs.length;
+    const passedSubs = completedSubs.filter(sub => {
+      const pct = parseFloat(sub.percentage);
+      if (!isNaN(pct)) return pct >= 50;
+      const obt = Number(sub.obtained_marks) || 0;
+      const tot = Number(sub.total_marks) || 0;
+      return tot > 0 ? (obt / tot) >= 0.5 : false;
+    });
+    const totalPassed = passedSubs.length;
+    const passPercentage = totalAttended > 0 ? ((totalPassed / totalAttended) * 100).toFixed(2) : '0.00';
+
+    let markAverageDisplay = '0.00';
+    if (totalAttended > 0) {
+      const sumMarks = completedSubs.reduce((acc, curr) => acc + (Number(curr.obtained_marks) || 0), 0);
+      const avgMarks = (sumMarks / totalAttended).toFixed(2);
+      const sumPct = completedSubs.reduce((acc, curr) => acc + (parseFloat(curr.percentage) || 0), 0);
+      const avgPct = (sumPct / totalAttended).toFixed(2);
+      const sampleTotalMarks = completedSubs[0]?.total_marks || (state.questions ? state.questions.length : 0);
+      markAverageDisplay = `${avgMarks} / ${sampleTotalMarks} (${avgPct}%)`;
+    }
+
+    // Append Summary Statistics rows at the bottom of the CSV
+    rows.push([]);
+    rows.push([csvCell('------------------------------------------------------------')]);
+    rows.push([csvCell(`SECTION ${sec} PERFORMANCE SUMMARY`)]);
+    rows.push([csvCell('------------------------------------------------------------')]);
+    rows.push([csvCell('TOTAL STUDENTS:'), csvCell(totalEnrolled)]);
+    rows.push([csvCell('TOTAL STUDENTS ATTENDED:'), csvCell(totalAttended)]);
+    rows.push([csvCell('TOTAL PASSED STUDENTS:'), csvCell(totalPassed)]);
+    rows.push([csvCell('PASS PERCENTAGE:'), csvCell(`${passPercentage}%`)]);
+    rows.push([csvCell('MARK AVERAGE:'), csvCell(markAverageDisplay)]);
 
     const csvContent = rows.map(r => r.join(',')).join('\r\n');
     const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
