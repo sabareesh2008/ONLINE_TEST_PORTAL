@@ -88,20 +88,32 @@ const SupabaseAPI = {
     }
   },
 
-  // 4. Check if student already submitted
-  checkExistingSubmission: async (regNo) => {
+  // 4. Check if student already submitted for specific test
+  checkExistingSubmission: async (regNo, testId = null) => {
     if (!SupabaseAPI.isConfigured()) return null;
     const clean = encodeURIComponent(regNo.trim().toUpperCase());
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 4000);
 
     try {
-      const res = await fetch(`${SUPABASE_CONFIG.url}/rest/v1/submissions?reg_no=eq.${clean}&select=submitted_at,obtained_marks,total_marks`, {
+      let query = `${SUPABASE_CONFIG.url}/rest/v1/submissions?reg_no=eq.${clean}&select=submitted_at,obtained_marks,total_marks,test_id,test_title`;
+      if (testId) {
+        query += `&test_id=eq.${encodeURIComponent(testId)}`;
+      }
+      const res = await fetch(query, {
         headers: SupabaseAPI.getHeaders(),
         signal: controller.signal
       });
       clearTimeout(timeout);
-      if (!res.ok) return null;
+      if (!res.ok) {
+        // Fallback without test_id filter if column doesn't exist
+        const fallbackRes = await fetch(`${SUPABASE_CONFIG.url}/rest/v1/submissions?reg_no=eq.${clean}&select=submitted_at,obtained_marks,total_marks`, {
+          headers: SupabaseAPI.getHeaders()
+        });
+        if (!fallbackRes.ok) return null;
+        const data = await fallbackRes.json();
+        return Array.isArray(data) && data.length > 0 ? data[0] : null;
+      }
       const data = await res.json();
       return Array.isArray(data) && data.length > 0 ? data[0] : null;
     } catch (err) {
@@ -140,7 +152,9 @@ const SupabaseAPI = {
           obtained_marks: submissionData.obtained_marks,
           percentage: parseFloat(submissionData.percentage),
           time_taken_seconds: submissionData.time_taken_seconds,
-          warning_count: submissionData.warning_count !== undefined ? submissionData.warning_count : 0
+          warning_count: submissionData.warning_count !== undefined ? submissionData.warning_count : 0,
+          test_id: submissionData.test_id || 'test_1',
+          test_title: submissionData.test_title || 'Technical Assessment 2026'
         };
 
         let subRes = await fetch(`${SUPABASE_CONFIG.url}/rest/v1/submissions`, {
@@ -149,19 +163,24 @@ const SupabaseAPI = {
           body: JSON.stringify([payload])
         });
 
-        // Graceful fallback if warning_count column does not exist yet in Supabase
+        // Graceful fallback if warning_count or test_id columns do not exist yet in Supabase
         if (!subRes.ok) {
           const errText = await subRes.text();
+          console.warn('[Supabase REST] First POST failed, checking missing columns...', errText);
+          if (errText.includes('test_id') || errText.includes('test_title')) {
+            delete payload.test_id;
+            delete payload.test_title;
+          }
           if (errText.includes('warning_count')) {
-            console.warn('[Supabase REST] warning_count column not found in submissions table, retrying without it...');
             delete payload.warning_count;
-            subRes = await fetch(`${SUPABASE_CONFIG.url}/rest/v1/submissions`, {
-              method: 'POST',
-              headers: SupabaseAPI.getHeaders(),
-              body: JSON.stringify([payload])
-            });
-          } else {
-            console.error('[Supabase REST] Save submission failed:', errText);
+          }
+          subRes = await fetch(`${SUPABASE_CONFIG.url}/rest/v1/submissions`, {
+            method: 'POST',
+            headers: SupabaseAPI.getHeaders(),
+            body: JSON.stringify([payload])
+          });
+          if (!subRes.ok) {
+            console.error('[Supabase REST] Retry save submission failed:', await subRes.text());
             return null;
           }
         }

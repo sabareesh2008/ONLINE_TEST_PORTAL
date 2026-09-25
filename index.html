@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Technical Assessment Portal 2026</title>
-  <link rel="stylesheet" href="style.css?v=12.0">
+  <link rel="stylesheet" href="style.css?v=13.0">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -276,11 +276,42 @@
           </div>
         </div>
 
-        <div style="display: flex; align-items: center; gap: 14px; margin-top: 14px;">
+        <div style="display: flex; align-items: center; gap: 14px; margin-top: 14px; flex-wrap: wrap;">
           <button type="button" class="btn-primary" id="btn-save-test-settings" style="padding: 10px 22px;">
             <span>Save Test Details</span>
           </button>
+          <button type="button" class="btn-secondary" id="btn-create-new-test" style="border-color: #2563eb; color: #2563eb;">
+            <span>➕ Create New Assessment (Test)</span>
+          </button>
           <span id="save-settings-feedback" style="font-size: 0.85rem; color: #10b981; font-weight: 600; display: none;">✓ Test configuration saved successfully!</span>
+        </div>
+      </div>
+
+      <!-- Section 1B: All Assessments & Historical Archive -->
+      <div class="admin-panel-card" style="margin-bottom: 22px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
+          <div>
+            <h3 style="font-size: 1.18rem; margin-bottom: 3px;">All Assessments & Test Archives</h3>
+            <p class="card-desc" style="margin-bottom: 0;">Completed and unpublished tests preserve all candidate submissions and section analytics.</p>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width: 45px;">#</th>
+                <th>Assessment Title</th>
+                <th style="width: 100px;">Duration</th>
+                <th style="width: 95px;">Questions</th>
+                <th style="width: 120px;">Submissions</th>
+                <th style="width: 140px;">Status</th>
+                <th style="width: 200px; text-align: center;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="all-tests-tbody">
+              <!-- Dynamically populated tests list -->
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -563,6 +594,22 @@
               </svg>
               <span>Download All Submissions (.CSV)</span>
             </button>
+          </div>
+        </div>
+
+        <!-- Assessment Selector Bar (Test 1, Test 2, etc.) -->
+        <div class="test-selector-card">
+          <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+            <label for="admin-test-archive-select" style="font-size: 0.92rem; font-weight: 700; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 6px;">
+              <span>📊 Select Assessment to Analyze:</span>
+            </label>
+            <select id="admin-test-archive-select" class="form-control" style="width: auto; min-width: 280px; font-weight: 600; padding: 7px 12px;">
+              <!-- Dynamically populated options for all tests (Test 1, Test 2, etc.) -->
+            </select>
+            <span id="selected-test-status-pill" class="badge-test-live">● Live / Active</span>
+          </div>
+          <div style="font-size: 0.84rem; color: #64748b;" id="selected-test-meta-info">
+            <!-- Shows submissions & question count for selected test -->
           </div>
         </div>
 
@@ -862,6 +909,63 @@
   </div>
 
   <!-- ==========================================
+       VIEW 4B: PRE-EXAM FULLSCREEN LAUNCH MODAL
+       ========================================== -->
+  <div id="exam-launch-modal" class="proctor-modal-overlay hidden">
+    <div class="launch-modal-card">
+      <div style="width: 64px; height: 64px; border-radius: 50%; background: #eff6ff; border: 2px solid #bfdbfe; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;">
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+        </svg>
+      </div>
+
+      <h3 style="font-size: 1.4rem; font-weight: 800; color: #0f172a; margin-bottom: 6px;">
+        Assessment Security & Full-Screen Check
+      </h3>
+      <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 14px;">
+        Please review your candidate credentials and proctoring rules before entering.
+      </p>
+
+      <div class="launch-candidate-badge">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+          <span style="font-size: 0.82rem; color: #64748b; font-weight: 600;">Candidate:</span>
+          <strong id="launch-student-name" style="color: #0f172a;">—</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+          <span style="font-size: 0.82rem; color: #64748b; font-weight: 600;">Register Number:</span>
+          <strong id="launch-student-regno" style="color: #2563eb; font-family: monospace;">—</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+          <span style="font-size: 0.82rem; color: #64748b; font-weight: 600;">Department & Section:</span>
+          <span id="launch-student-dept-sec" style="color: #334155; font-weight: 600;">—</span>
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+          <span style="font-size: 0.82rem; color: #64748b; font-weight: 600;">Assessment / Duration:</span>
+          <span id="launch-test-meta" style="color: #16a34a; font-weight: 700;">45 Mins • 15 Questions</span>
+        </div>
+      </div>
+
+      <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 12px 14px; text-align: left; margin-bottom: 20px;">
+        <h5 style="color: #92400e; font-size: 0.84rem; font-weight: 700; margin-bottom: 4px;">⚠️ Strict Proctoring Rules:</h5>
+        <ul style="color: #78350f; font-size: 0.8rem; margin: 0; padding-left: 18px; line-height: 1.5;">
+          <li>This examination runs exclusively in <strong>Full-Screen Mode</strong>.</li>
+          <li>Exiting full screen, pressing <code>Escape</code>, or switching tabs issues a security warning.</li>
+          <li>Reaching <strong>3 warnings terminates and auto-submits</strong> your test immediately.</li>
+        </ul>
+      </div>
+
+      <div style="display: flex; gap: 12px;">
+        <button type="button" class="btn-portal-neutral" id="btn-cancel-launch" style="flex: 1;">
+          <span>Cancel</span>
+        </button>
+        <button type="button" class="btn-portal-primary" id="btn-confirm-launch-fullscreen" style="flex: 2; padding: 12px 20px; font-size: 0.95rem; font-weight: 700;">
+          <span>⛶ Launch Exam in Full Screen</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================
        PROCTORING SECURITY WARNING MODAL (ESC / TAB SWITCH)
        ========================================== -->
   <div id="proctor-warning-modal" class="proctor-modal-overlay hidden">
@@ -1011,9 +1115,9 @@
   <!-- SheetJS CDN for robust Excel (.xlsx/.xls) and CSV parsing -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <!-- Application Scripts -->
-  <script src="supabase-config.js?v=12.0"></script>
-  <script src="questions.js?v=12.0"></script>
-  <script src="students.js?v=12.0"></script>
-  <script src="app.js?v=12.0"></script>
+  <script src="supabase-config.js?v=13.0"></script>
+  <script src="questions.js?v=13.0"></script>
+  <script src="students.js?v=13.0"></script>
+  <script src="app.js?v=13.0"></script>
 </body>
 </html>

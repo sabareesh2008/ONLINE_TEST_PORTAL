@@ -1732,3 +1732,67 @@ body {
   margin: 0 auto 16px;
 }
 
+/* ========================================================
+   PRE-EXAM FULLSCREEN LAUNCH MODAL & TEST ARCHIVE
+   ======================================================== */
+.launch-modal-card {
+  background: #ffffff;
+  border: 1.5px solid var(--primary-border);
+  border-radius: var(--radius-xl);
+  padding: 36px 32px;
+  max-width: 540px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25);
+  animation: fadeIn 0.25s ease;
+}
+
+.launch-candidate-badge {
+  background: #f1f5f9;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  margin: 18px 0;
+  text-align: left;
+}
+
+.test-selector-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: #ffffff;
+  border: 1.5px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 14px 20px;
+  margin-bottom: 22px;
+  flex-wrap: wrap;
+  box-shadow: var(--shadow-sm);
+}
+
+.badge-test-live {
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #86efac;
+  padding: 3px 9px;
+  border-radius: 9999px;
+  font-weight: 700;
+  font-size: 0.76rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.badge-test-archived {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  padding: 3px 9px;
+  border-radius: 9999px;
+  font-weight: 700;
+  font-size: 0.76rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+

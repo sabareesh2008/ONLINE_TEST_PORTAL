@@ -19,15 +19,39 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
     : (typeof QUESTIONS_BANK !== 'undefined' && Array.isArray(QUESTIONS_BANK) ? [...QUESTIONS_BANK] : []);
   const savedLastResult = JSON.parse(sessionStorage.getItem('portal_last_result') || localStorage.getItem('portal_last_result') || 'null');
 
+  // Multi-Test Archive & Management Setup
+  let savedAllTests = JSON.parse(localStorage.getItem('portal_all_tests') || '[]');
+  let activeTestId = localStorage.getItem('portal_active_test_id') || 'test_1';
+  const initialSubmissions = JSON.parse(localStorage.getItem('portal_submissions') || '[]');
+
+  if (!Array.isArray(savedAllTests) || savedAllTests.length === 0) {
+    savedAllTests = [{
+      id: 'test_1',
+      title: localStorage.getItem('portal_test_title') || 'Technical Assessment 2026',
+      duration: parseInt(localStorage.getItem('portal_test_duration') || '45', 10),
+      status: localStorage.getItem('portal_test_published') === 'true' ? 'published' : 'unpublished',
+      createdAt: new Date().toISOString(),
+      questions: initialQuestions,
+      submissions: initialSubmissions
+    }];
+    localStorage.setItem('portal_all_tests', JSON.stringify(savedAllTests));
+    localStorage.setItem('portal_active_test_id', 'test_1');
+  }
+
+  const initialActiveTest = savedAllTests.find(t => t.id === activeTestId) || savedAllTests[0];
+
   const state = {
     student: null,
     isAdminLoggedIn: sessionStorage.getItem('admin_logged_in') === 'true',
-    isTestPublished: localStorage.getItem('portal_test_published') === 'true',
-    testTitle: localStorage.getItem('portal_test_title') || 'Technical Assessment 2026',
-    testDuration: parseInt(localStorage.getItem('portal_test_duration') || '45', 10),
+    allTests: savedAllTests,
+    activeTestId: initialActiveTest.id,
+    analyzingTestId: initialActiveTest.id,
+    isTestPublished: initialActiveTest.status === 'published',
+    testTitle: initialActiveTest.title || 'Technical Assessment 2026',
+    testDuration: initialActiveTest.duration || 45,
     allStudents: typeof REGISTERED_STUDENTS !== 'undefined' ? [...REGISTERED_STUDENTS] : [],
-    submissions: [],
-    questions: initialQuestions,
+    submissions: Array.isArray(initialActiveTest.submissions) ? initialActiveTest.submissions : initialSubmissions,
+    questions: Array.isArray(initialActiveTest.questions) && initialActiveTest.questions.length > 0 ? initialActiveTest.questions : initialQuestions,
 
     // Exam runtime state
     examCurrentIndex: 0,
@@ -49,7 +73,8 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
     // Fullscreen Proctoring & Security State
     proctorWarnings: 0,
     isExamActive: false,
-    isWarningModalOpen: false
+    isWarningModalOpen: false,
+    proctorGraceUntil: 0
   };
 
   // Keep window.QUESTIONS_BANK in sync
@@ -222,6 +247,45 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
   const examWarningBadge = document.getElementById('exam-warning-badge');
   const resWarnings = document.getElementById('res-warnings');
 
+  // Pre-Exam Fullscreen Launch Modal Elements
+  const examLaunchModal = document.getElementById('exam-launch-modal');
+  const launchStudentName = document.getElementById('launch-student-name');
+  const launchStudentRegno = document.getElementById('launch-student-regno');
+  const launchStudentDeptSec = document.getElementById('launch-student-dept-sec');
+  const launchTestMeta = document.getElementById('launch-test-meta');
+  const btnConfirmLaunchFullscreen = document.getElementById('btn-confirm-launch-fullscreen');
+  const btnCancelLaunch = document.getElementById('btn-cancel-launch');
+
+  // Multi-Test Archive & Management DOM Elements
+  const btnCreateNewTest = document.getElementById('btn-create-new-test');
+  const allTestsTbody = document.getElementById('all-tests-tbody');
+  const adminTestArchiveSelect = document.getElementById('admin-test-archive-select');
+  const selectedTestStatusPill = document.getElementById('selected-test-status-pill');
+  const selectedTestMetaInfo = document.getElementById('selected-test-meta-info');
+
+  // Multi-Test Archive Helper Functions
+  function saveAllTestsToStorage() {
+    try {
+      localStorage.setItem('portal_all_tests', JSON.stringify(state.allTests));
+      localStorage.setItem('portal_active_test_id', state.activeTestId);
+      localStorage.setItem('portal_test_title', state.testTitle);
+      localStorage.setItem('portal_test_duration', state.testDuration.toString());
+      localStorage.setItem('portal_test_published', state.isTestPublished ? 'true' : 'false');
+      localStorage.setItem('portal_assigned_questions', JSON.stringify(state.questions));
+      localStorage.setItem('portal_submissions', JSON.stringify(state.submissions));
+    } catch (e) {
+      console.warn('[Storage Save Warning]:', e);
+    }
+  }
+
+  function getActiveTest() {
+    return state.allTests.find(t => t.id === state.activeTestId) || state.allTests[0];
+  }
+
+  function getAnalyzingTest() {
+    return state.allTests.find(t => t.id === state.analyzingTestId) || getActiveTest();
+  }
+
   // ========================================================
   // 1. INITIALIZATION & VIEW CONTROLLER
   // ========================================================
@@ -237,6 +301,9 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
     setupResultReview();
     setupAnalyticsTracker();
     setupProctoringGuards();
+
+    renderAllTestsTable();
+    populateTestArchiveSelector();
 
     // Check if admin is currently active
     if (state.isAdminLoggedIn) {
@@ -448,17 +515,23 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
         btnEnter.disabled = false;
         btnEnter.innerHTML = originalText;
 
-        // ── DUPLICATE SUBMISSION GUARD ──────────────────────────────────
-        // Check if this student already submitted (localStorage first, then state)
+        // ── DUPLICATE SUBMISSION GUARD (PER ACTIVE TEST) ──────────────────────────────────
+        const activeT = getActiveTest();
+        const activeSubs = (activeT && Array.isArray(activeT.submissions)) ? activeT.submissions : [];
         const localSubs = JSON.parse(localStorage.getItem('portal_submissions') || '[]');
-        const allSubs = localSubs.length > 0 ? localSubs : state.submissions;
-        const prevSub = allSubs.find(s =>
+        const currentTestSubs = activeSubs.length > 0 ? activeSubs : localSubs.filter(s => !s.test_id || s.test_id === state.activeTestId);
+
+        let prevSub = currentTestSubs.find(s =>
           s.reg_no && s.reg_no.toUpperCase() === matchedStudent.reg_no.toUpperCase()
         );
 
+        if (!prevSub && typeof SupabaseAPI !== 'undefined' && SupabaseAPI.isConfigured()) {
+          prevSub = await SupabaseAPI.checkExistingSubmission(matchedStudent.reg_no, state.activeTestId);
+        }
+
         if (prevSub) {
           // Populate the already-submitted info card
-          if (asStudentName) asStudentName.textContent = prevSub.name || matchedStudent.name;
+          if (asStudentName) asStudentName.textContent = prevSub.name || prevSub.student_name || matchedStudent.name;
           if (asRegNo) asRegNo.textContent = prevSub.reg_no || matchedStudent.reg_no;
           if (asDeptSec) asDeptSec.textContent = `${prevSub.department || matchedStudent.department} • Section ${prevSub.section || matchedStudent.section}`;
           if (asScore) asScore.textContent = `${prevSub.obtained_marks ?? '—'} / ${prevSub.total_marks ?? '—'}`;
@@ -483,8 +556,17 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
           return;
         }
 
-        // Start Assessment!
-        startAssessment();
+        // Show Pre-Exam Fullscreen Confirmation Modal for direct user gesture launch!
+        if (launchStudentName) launchStudentName.textContent = state.student.name;
+        if (launchStudentRegno) launchStudentRegno.textContent = state.student.reg_no;
+        if (launchStudentDeptSec) launchStudentDeptSec.textContent = `${state.student.department} • Section ${state.student.section}`;
+        if (launchTestMeta) launchTestMeta.textContent = `${state.testDuration || 45} Mins • ${state.questions.length} Questions (${state.testTitle})`;
+
+        if (examLaunchModal) {
+          examLaunchModal.classList.remove('hidden');
+        } else {
+          startAssessment();
+        }
       } catch (err) {
         console.error('[Student Auth Error]:', err);
         showCustomAlert(studentLoginAlert, `Verification error: ${err.message}.`);
@@ -492,6 +574,22 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
         btnEnter.innerHTML = originalText;
       }
     });
+
+    // Wire Pre-Exam Fullscreen Launch Modal Buttons
+    if (btnConfirmLaunchFullscreen) {
+      btnConfirmLaunchFullscreen.addEventListener('click', () => {
+        if (examLaunchModal) examLaunchModal.classList.add('hidden');
+        // Synchronous start within direct user gesture!
+        startAssessment();
+      });
+    }
+
+    if (btnCancelLaunch) {
+      btnCancelLaunch.addEventListener('click', () => {
+        if (examLaunchModal) examLaunchModal.classList.add('hidden');
+        state.student = null;
+      });
+    }
 
     // Wire "Back to Home" on already-submitted screen
     if (btnBackFromSubmitted) {
@@ -610,16 +708,27 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
       btnTogglePublish.addEventListener('click', () => {
         state.isTestPublished = !state.isTestPublished;
         localStorage.setItem('portal_test_published', state.isTestPublished ? 'true' : 'false');
+
+        // Sync with active test in state.allTests
+        const curActive = getActiveTest();
+        if (curActive) {
+          curActive.status = state.isTestPublished ? 'published' : 'unpublished';
+          curActive.questions = [...state.questions];
+          curActive.submissions = [...state.submissions];
+        }
+        saveAllTestsToStorage();
         updateStatusBadge();
+        renderAllTestsTable();
+        renderAnalytics();
 
         if (state.isTestPublished) {
           if (state.questions.length === 0) {
             alert('Assessment published! However, 0 questions are currently loaded. Add or upload questions below to allow students to take the test.');
           } else {
-            alert(`Assessment is now LIVE and PUBLISHED with ${state.questions.length} questions! Candidates can now log in and take the exam.`);
+            alert(`Assessment "${state.testTitle}" is now LIVE and PUBLISHED with ${state.questions.length} questions! Candidates can now log in and take the exam.`);
           }
         } else {
-          alert('Assessment has been UNPUBLISHED! Students will see "There is no test right now" upon login.');
+          alert(`Assessment "${state.testTitle}" has been UNPUBLISHED!\n\nAll candidate records, marks, and section analytics are securely archived under this assessment.`);
         }
       });
     }
@@ -630,8 +739,16 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
         const duration = parseInt(adminTestDurationInput ? adminTestDurationInput.value : '45', 10);
         state.testTitle = title || 'Technical Assessment 2026';
         state.testDuration = isNaN(duration) || duration <= 0 ? 45 : duration;
-        localStorage.setItem('portal_test_title', state.testTitle);
-        localStorage.setItem('portal_test_duration', state.testDuration.toString());
+
+        const curActive = getActiveTest();
+        if (curActive) {
+          curActive.title = state.testTitle;
+          curActive.duration = state.testDuration;
+        }
+
+        saveAllTestsToStorage();
+        renderAllTestsTable();
+        renderAnalytics();
 
         const feedback = document.getElementById('save-settings-feedback');
         if (feedback) {
@@ -640,6 +757,60 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
         } else {
           alert('Test configuration updated successfully!');
         }
+      });
+    }
+
+    // Create New Assessment Handler (e.g. Test 2, Test 3)
+    if (btnCreateNewTest) {
+      btnCreateNewTest.addEventListener('click', () => {
+        const testNum = state.allTests.length + 1;
+        const newTitle = prompt(`Enter Title for New Assessment #${testNum}:`, `Technical Assessment ${testNum}`);
+        if (!newTitle || !newTitle.trim()) return;
+
+        const newDurationStr = prompt(`Enter Test Duration in Minutes for "${newTitle}":`, '45');
+        const newDuration = parseInt(newDurationStr || '45', 10);
+
+        // 1. Archive current active test state
+        const curActive = getActiveTest();
+        if (curActive) {
+          curActive.status = 'unpublished';
+          curActive.questions = [...state.questions];
+          curActive.submissions = [...state.submissions];
+        }
+
+        // 2. Create new test entry
+        const newTestId = 'test_' + Date.now();
+        const newTest = {
+          id: newTestId,
+          title: newTitle.trim(),
+          duration: isNaN(newDuration) || newDuration <= 0 ? 45 : newDuration,
+          status: 'unpublished',
+          createdAt: new Date().toISOString(),
+          questions: [],
+          submissions: []
+        };
+
+        state.allTests.unshift(newTest);
+        state.activeTestId = newTestId;
+        state.analyzingTestId = newTestId;
+        state.testTitle = newTest.title;
+        state.testDuration = newTest.duration;
+        state.isTestPublished = false;
+        state.questions = [];
+        state.submissions = [];
+        window.QUESTIONS_BANK = [];
+
+        saveAllTestsToStorage();
+
+        if (adminTestTitleInput) adminTestTitleInput.value = state.testTitle;
+        if (adminTestDurationInput) adminTestDurationInput.value = state.testDuration;
+
+        updateStatusBadge();
+        renderQuestionsPreview();
+        renderAllTestsTable();
+        renderAnalytics();
+
+        alert(`New Assessment "${newTest.title}" created successfully!\n\nPrevious test data has been archived safely. You can now add questions for this new test and publish it.`);
       });
     }
 
@@ -1123,6 +1294,103 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
     });
   }
 
+  // Populate Test Selection Dropdown in Analytics Tab
+  function populateTestArchiveSelector() {
+    if (!adminTestArchiveSelect) return;
+
+    const currentSelected = state.analyzingTestId || state.activeTestId;
+    adminTestArchiveSelect.innerHTML = state.allTests.map(t => {
+      const isSelected = t.id === currentSelected;
+      const subCount = Array.isArray(t.submissions) ? t.submissions.length : 0;
+      const statusLabel = t.status === 'published' ? 'Live / Active' : 'Completed / Unpublished';
+      return `<option value="${t.id}" ${isSelected ? 'selected' : ''}>${escapeHtml(t.title)} [${statusLabel} - ${subCount} Subs]</option>`;
+    }).join('');
+  }
+
+  // Render All Tests Historical Table in Tab 1
+  function renderAllTestsTable() {
+    if (!allTestsTbody) return;
+
+    if (!state.allTests || state.allTests.length === 0) {
+      allTestsTbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #64748b; padding: 20px;">No assessment records found.</td></tr>`;
+      return;
+    }
+
+    allTestsTbody.innerHTML = state.allTests.map((t, idx) => {
+      const isLive = (t.status === 'published');
+      const isActiveSelected = (t.id === state.activeTestId);
+      const qCount = Array.isArray(t.questions) ? t.questions.length : 0;
+      const subCount = Array.isArray(t.submissions) ? t.submissions.length : 0;
+
+      const statusBadge = isLive
+        ? `<span class="badge-test-live">● Live (Published)</span>`
+        : `<span class="badge-test-archived">● Completed / Unpublished</span>`;
+
+      return `
+        <tr style="${isActiveSelected ? 'background: #eff6ff;' : ''}">
+          <td style="color: #64748b;">${idx + 1}</td>
+          <td>
+            <div style="font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+              <span>${escapeHtml(t.title)}</span>
+              ${isActiveSelected ? '<span style="background: #2563eb; color: #fff; font-size: 0.68rem; padding: 1px 6px; border-radius: 4px; font-weight: 800;">ACTIVE</span>' : ''}
+            </div>
+            <div style="font-size: 0.76rem; color: #64748b;">ID: ${t.id} • Created: ${new Date(t.createdAt).toLocaleDateString()}</div>
+          </td>
+          <td style="color: #334155; font-weight: 500;">${t.duration || 45} mins</td>
+          <td><strong style="color: #2563eb;">${qCount} Qs</strong></td>
+          <td><strong style="color: #16a34a;">${subCount} Candidates</strong></td>
+          <td>${statusBadge}</td>
+          <td style="text-align: center;">
+            <div style="display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;">
+              <button type="button" class="btn-portal-primary btn-analyze-test" data-id="${t.id}" style="padding: 4px 10px; font-size: 0.78rem;" title="View Section Analytics & Student Submissions for this test">
+                📊 Analyze
+              </button>
+              <button type="button" class="btn-portal-secondary btn-select-active-test" data-id="${t.id}" style="padding: 4px 10px; font-size: 0.78rem;" title="Set as active test to upload questions or publish">
+                ${isActiveSelected ? '✓ Active' : 'Select'}
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    // Wire action buttons
+    document.querySelectorAll('.btn-analyze-test').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-id');
+        state.analyzingTestId = id;
+        const analyticsTabBtn = document.querySelector('.admin-tab[data-target="admin-tab-analytics"]');
+        if (analyticsTabBtn) analyticsTabBtn.click();
+        renderAnalytics();
+      });
+    });
+
+    document.querySelectorAll('.btn-select-active-test').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-id');
+        const chosen = state.allTests.find(t => t.id === id);
+        if (!chosen) return;
+
+        state.activeTestId = chosen.id;
+        state.analyzingTestId = chosen.id;
+        state.testTitle = chosen.title;
+        state.testDuration = chosen.duration || 45;
+        state.isTestPublished = (chosen.status === 'published');
+        state.questions = Array.isArray(chosen.questions) ? chosen.questions : [];
+        state.submissions = Array.isArray(chosen.submissions) ? chosen.submissions : [];
+        window.QUESTIONS_BANK = state.questions;
+
+        saveAllTestsToStorage();
+        updateStatusBadge();
+        if (adminTestTitleInput) adminTestTitleInput.value = state.testTitle;
+        if (adminTestDurationInput) adminTestDurationInput.value = state.testDuration;
+        renderQuestionsPreview();
+        renderAllTestsTable();
+        renderAnalytics();
+      });
+    });
+  }
+
   // ========================================================
   // 6. STUDENT EXAMINATION WORKSPACE & LOGIC
   // ========================================================
@@ -1406,16 +1674,20 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
 
   function requestPortalFullscreen() {
     const elem = document.documentElement;
-    if (elem.requestFullscreen) {
-      return elem.requestFullscreen().catch(err => {
-        console.warn('[Fullscreen Warning]:', err.message);
-      });
-    } else if (elem.webkitRequestFullscreen) {
-      return elem.webkitRequestFullscreen();
-    } else if (elem.mozRequestFullScreen) {
-      return elem.mozRequestFullScreen();
-    } else if (elem.msRequestFullscreen) {
-      return elem.msRequestFullscreen();
+    try {
+      if (elem.requestFullscreen) {
+        return elem.requestFullscreen().catch(err => {
+          console.warn('[Fullscreen Warning]:', err.message);
+        });
+      } else if (elem.webkitRequestFullscreen) {
+        return elem.webkitRequestFullscreen();
+      } else if (elem.mozRequestFullScreen) {
+        return elem.mozRequestFullScreen();
+      } else if (elem.msRequestFullscreen) {
+        return elem.msRequestFullscreen();
+      }
+    } catch (err) {
+      console.warn('[Fullscreen Request Exception]:', err.message);
     }
   }
 
@@ -1423,6 +1695,7 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
     // 1. Detect Fullscreen Exit (Escape key or browser control)
     const onFullscreenChange = () => {
       if (!state.isExamActive) return;
+      if (Date.now() < (state.proctorGraceUntil || 0)) return; // Ignore during launch/resume transition!
       const isFull = Boolean(
         document.fullscreenElement ||
         document.webkitFullscreenElement ||
@@ -1442,6 +1715,7 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
     // 2. Tab switch or minimize window
     document.addEventListener('visibilitychange', () => {
       if (!state.isExamActive) return;
+      if (Date.now() < (state.proctorGraceUntil || 0)) return;
       if (document.hidden) {
         triggerProctorWarning('Switched tabs or minimized browser window');
       }
@@ -1450,7 +1724,13 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
     // 3. Window blur (clicked outside or alt-tabbed)
     window.addEventListener('blur', () => {
       if (!state.isExamActive) return;
-      triggerProctorWarning('Left examination window');
+      if (Date.now() < (state.proctorGraceUntil || 0)) return;
+      if (state.isWarningModalOpen) return;
+      setTimeout(() => {
+        if (state.isExamActive && !document.hasFocus() && !state.isWarningModalOpen) {
+          triggerProctorWarning('Left examination window');
+        }
+      }, 350);
     });
 
     // 4. Intercept Escape key explicitly
@@ -1463,14 +1743,11 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
 
     // 5. Warning Modal "Return to Fullscreen & Resume" button
     if (btnResumeFullscreen) {
-      btnResumeFullscreen.addEventListener('click', async () => {
+      btnResumeFullscreen.addEventListener('click', () => {
         if (proctorWarningModal) proctorWarningModal.classList.add('hidden');
         state.isWarningModalOpen = false;
-        try {
-          await requestPortalFullscreen();
-        } catch (e) {
-          console.warn('[Resume Fullscreen Error]:', e);
-        }
+        state.proctorGraceUntil = Date.now() + 2500;
+        requestPortalFullscreen();
       });
     }
   }
@@ -1636,6 +1913,8 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
       time_taken_seconds: timeSpentSeconds,
       warning_count: state.proctorWarnings || 0,
       is_terminated: Boolean(isTerminated || state.proctorWarnings >= 3),
+      test_id: state.activeTestId || 'test_1',
+      test_title: state.testTitle || 'Technical Assessment 2026',
       submitted_at: new Date().toISOString()
     };
 
@@ -1643,6 +1922,7 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
     state.lastResult = {
       student: state.student ? { ...state.student } : { name: 'Candidate', reg_no: 'N/A', department: 'ECE', section: 'A' },
       testTitle: state.testTitle || 'Technical Assessment 2026',
+      testId: state.activeTestId || 'test_1',
       totalMarks,
       obtainedMarks,
       percentage: parseFloat(percentage),
@@ -1680,22 +1960,35 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
       }
     }
 
-    // Save to localStorage submissions (duplicate-guarded)
+    // Save to active test archive in state.allTests
+    const activeTestRecord = getActiveTest();
+    if (activeTestRecord) {
+      if (!Array.isArray(activeTestRecord.submissions)) activeTestRecord.submissions = [];
+      const dup = activeTestRecord.submissions.some(s =>
+        s.reg_no && s.reg_no.toUpperCase() === submissionData.reg_no.toUpperCase()
+      );
+      if (!dup) {
+        activeTestRecord.submissions.unshift(submissionData);
+      }
+    }
+
+    // Save to localStorage submissions
     const localSubs = JSON.parse(localStorage.getItem('portal_submissions') || '[]');
     const alreadyExists = localSubs.some(s =>
-      s.reg_no && s.reg_no.toUpperCase() === submissionData.reg_no.toUpperCase()
+      s.reg_no && s.reg_no.toUpperCase() === submissionData.reg_no.toUpperCase() &&
+      (!s.test_id || s.test_id === submissionData.test_id)
     );
     if (!alreadyExists) {
       localSubs.unshift(submissionData);
       localStorage.setItem('portal_submissions', JSON.stringify(localSubs));
-      // Only push into in-memory state if not already present
       const inMemDup = state.submissions.some(s =>
         s.reg_no && s.reg_no.toUpperCase() === submissionData.reg_no.toUpperCase()
       );
       if (!inMemDup) state.submissions.unshift(submissionData);
-    } else {
-      console.warn('[Duplicate Guard] Submission for', submissionData.reg_no, 'already exists. Skipping save.');
     }
+
+    // Persist all updated tests to storage
+    saveAllTestsToStorage();
 
     // Populate Results View Summary Banner
     if (resStudentName && state.student) resStudentName.textContent = state.student.name;
@@ -2331,8 +2624,20 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
       }
 
       const dbSubs = await SupabaseAPI.getAllSubmissions();
-      if (Array.isArray(dbSubs)) {
+      if (Array.isArray(dbSubs) && dbSubs.length > 0) {
         state.submissions = dbSubs;
+
+        // Distribute/merge submissions into corresponding tests in state.allTests
+        state.allTests.forEach(t => {
+          const testMatches = dbSubs.filter(s => s.test_id === t.id);
+          if (testMatches.length > 0) {
+            t.submissions = testMatches;
+          } else if (t.id === 'test_1') {
+            const unassigned = dbSubs.filter(s => !s.test_id || s.test_id === 'test_1');
+            if (unassigned.length > 0) t.submissions = unassigned;
+          }
+        });
+        saveAllTestsToStorage();
       }
     }
 
@@ -2347,6 +2652,7 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
     if (dirCountText) dirCountText.textContent = `Showing ${state.allStudents.length} registered candidates`;
 
     renderStudentDirectory();
+    renderAllTestsTable();
     renderAnalytics();
     renderQuestionsPreview();
   }
@@ -2449,16 +2755,42 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
         renderSubmissionsTable();
       });
     }
+
+    // 7. Test Archive Analytics Selector
+    if (adminTestArchiveSelect) {
+      adminTestArchiveSelect.addEventListener('change', () => {
+        state.analyzingTestId = adminTestArchiveSelect.value;
+        renderAnalytics();
+      });
+    }
   }
 
   function renderAnalytics() {
     if (!sectionProgressCards) return;
 
+    populateTestArchiveSelector();
+
+    const analyzingTest = getAnalyzingTest();
+    const testSubs = (analyzingTest && Array.isArray(analyzingTest.submissions))
+      ? analyzingTest.submissions
+      : state.submissions;
+
+    if (selectedTestStatusPill && analyzingTest) {
+      const isLive = (analyzingTest.status === 'published');
+      selectedTestStatusPill.className = isLive ? 'badge-test-live' : 'badge-test-archived';
+      selectedTestStatusPill.textContent = isLive ? '● Live / Active' : '● Completed / Unpublished';
+    }
+
+    if (selectedTestMetaInfo && analyzingTest) {
+      const qCount = Array.isArray(analyzingTest.questions) ? analyzingTest.questions.length : 0;
+      selectedTestMetaInfo.textContent = `Test: ${escapeHtml(analyzingTest.title)} • Duration: ${analyzingTest.duration || 45}m • Questions: ${qCount} • Total Submissions: ${testSubs.length}`;
+    }
+
     const sections = ['A', 'B', 'C', 'D', 'E', 'F'];
 
     sectionProgressCards.innerHTML = sections.map(sec => {
       const enrolled = state.allStudents.filter(s => s.section === sec).length;
-      const completed = state.submissions.filter(sub => sub.section === sec).length;
+      const completed = testSubs.filter(sub => sub.section === sec).length;
       const pct = enrolled > 0 ? Math.round((completed / enrolled) * 100) : 0;
       const isActive = state.activeSectionDrilldown === sec;
 
@@ -2511,8 +2843,13 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
 
     sectionDrilldownPanel.classList.remove('hidden');
 
+    const analyzingTest = getAnalyzingTest();
+    const testSubs = (analyzingTest && Array.isArray(analyzingTest.submissions))
+      ? analyzingTest.submissions
+      : state.submissions;
+
     const enrolledStudents = state.allStudents.filter(s => s.section === sec);
-    const completedSubs = state.submissions.filter(s => s.section === sec);
+    const completedSubs = testSubs.filter(s => s.section === sec);
     const subMap = new Map();
     completedSubs.forEach(sub => {
       subMap.set(sub.reg_no.toUpperCase(), sub);
@@ -2528,7 +2865,7 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
       avgPercentage = (sumPct / completedCount).toFixed(1);
     }
 
-    if (drilldownTitle) drilldownTitle.textContent = `Section ${sec} Candidate Performance Breakdown`;
+    if (drilldownTitle) drilldownTitle.textContent = `Section ${sec} Candidate Performance Breakdown - ${analyzingTest ? analyzingTest.title : state.testTitle}`;
     if (drilldownSubtitle) drilldownSubtitle.textContent = `Showing all ${enrolledCount} enrolled students in Section ${sec} and test completion records.`;
     if (btnDownloadSectionText) btnDownloadSectionText.textContent = `Download Section ${sec} Report (.CSV)`;
 
@@ -2615,10 +2952,15 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
   function renderSubmissionsTable() {
     if (!submissionsTbody) return;
 
+    const analyzingTest = getAnalyzingTest();
+    const testSubs = (analyzingTest && Array.isArray(analyzingTest.submissions))
+      ? analyzingTest.submissions
+      : state.submissions;
+
     const filterSec = state.submissionSectionFilter || 'ALL';
     const query = state.submissionSearchQuery || '';
 
-    const filtered = state.submissions.filter(sub => {
+    const filtered = testSubs.filter(sub => {
       const matchSec = (filterSec === 'ALL') || (sub.section === filterSec);
       const matchSearch = !query ||
         sub.student_name.toLowerCase().includes(query) ||
@@ -2668,8 +3010,14 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
 
   // Download All Submissions as CSV file
   function downloadAllSubmissionsCSV() {
-    if (!state.submissions || state.submissions.length === 0) {
-      alert('No student submissions found to export.');
+    const analyzingTest = getAnalyzingTest();
+    const testSubs = (analyzingTest && Array.isArray(analyzingTest.submissions))
+      ? analyzingTest.submissions
+      : state.submissions;
+    const testTitle = analyzingTest ? analyzingTest.title : state.testTitle;
+
+    if (!testSubs || testSubs.length === 0) {
+      alert(`No student submissions found to export for "${testTitle}".`);
       return;
     }
 
@@ -2681,8 +3029,8 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
 
     const rows = [];
     rows.push([csvCell('TECHNICAL ASSESSMENT - ALL CANDIDATE SUBMISSIONS EXPORT')]);
-    rows.push([csvCell('Examination Title:'), csvCell(state.testTitle || 'Technical Assessment 2026')]);
-    rows.push([csvCell('Total Submissions Recorded:'), csvCell(state.submissions.length)]);
+    rows.push([csvCell('Examination Title:'), csvCell(testTitle || 'Technical Assessment 2026')]);
+    rows.push([csvCell('Total Submissions Recorded:'), csvCell(testSubs.length)]);
     rows.push([csvCell('Export Date:'), csvCell(new Date().toLocaleString())]);
     rows.push([]);
     rows.push([
@@ -2699,7 +3047,7 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
       csvCell('Submission Date & Time')
     ]);
 
-    state.submissions.forEach((sub, idx) => {
+    testSubs.forEach((sub, idx) => {
       let timeFormatted = 'N/A';
       if (sub.time_taken_seconds !== undefined) {
         const mins = Math.floor(sub.time_taken_seconds / 60);
@@ -2730,7 +3078,8 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `All_Assessment_Submissions_${new Date().toISOString().slice(0, 10)}.csv`;
+    const safeTitle = (testTitle || 'Assessment').replace(/[^a-zA-Z0-9]/g, '_');
+    link.download = `${safeTitle}_Submissions_${new Date().toISOString().slice(0, 10)}.csv`;
     link.style.display = 'none';
     document.body.appendChild(link);
     link.click();
@@ -2742,13 +3091,19 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
 
   // Download Section-Specific Report as CSV file
   function downloadSectionReportCSV(sec) {
+    const analyzingTest = getAnalyzingTest();
+    const testSubs = (analyzingTest && Array.isArray(analyzingTest.submissions))
+      ? analyzingTest.submissions
+      : state.submissions;
+    const testTitle = analyzingTest ? analyzingTest.title : state.testTitle;
+
     const enrolledStudents = state.allStudents.filter(s => s.section === sec);
     if (enrolledStudents.length === 0) {
       alert(`No students found for Section ${sec}.`);
       return;
     }
 
-    const completedSubs = state.submissions.filter(s => s.section === sec);
+    const completedSubs = testSubs.filter(s => s.section === sec);
     const subMap = new Map();
     completedSubs.forEach(sub => {
       subMap.set(sub.reg_no.toUpperCase(), sub);
@@ -2762,7 +3117,7 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
 
     const rows = [];
     rows.push([csvCell(`TECHNICAL ASSESSMENT - SECTION ${sec} CANDIDATE PERFORMANCE REPORT`)]);
-    rows.push([csvCell('Examination Title:'), csvCell(state.testTitle || 'Technical Assessment 2026')]);
+    rows.push([csvCell('Examination Title:'), csvCell(testTitle || 'Technical Assessment 2026')]);
     rows.push([csvCell('Section:'), csvCell(`Section ${sec}`)]);
     rows.push([csvCell('Total Enrolled Students:'), csvCell(enrolledStudents.length)]);
     rows.push([csvCell('Completed Submissions:'), csvCell(completedSubs.length)]);
@@ -2822,7 +3177,8 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `Section_${sec}_Performance_Report_${new Date().toISOString().slice(0, 10)}.csv`;
+    const safeTitle = (testTitle || 'Assessment').replace(/[^a-zA-Z0-9]/g, '_');
+    link.download = `Section_${sec}_${safeTitle}_Report_${new Date().toISOString().slice(0, 10)}.csv`;
     link.style.display = 'none';
     document.body.appendChild(link);
     link.click();
