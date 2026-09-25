@@ -181,5 +181,34 @@ const SupabaseAPI = {
       console.error('[Supabase REST] saveSubmission error:', err);
       return null;
     }
+  },
+
+  // 7. Verify Admin Login from Supabase admins table
+  verifyAdmin: async (username, password) => {
+    if (!SupabaseAPI.isConfigured()) return null;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+
+    try {
+      const usernameEnc = encodeURIComponent(username.trim());
+      const res = await fetch(
+        `${SUPABASE_CONFIG.url}/rest/v1/admins?username=eq.${usernameEnc}&select=*&limit=1`,
+        { headers: SupabaseAPI.getHeaders(), signal: controller.signal }
+      );
+      clearTimeout(timeout);
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (!Array.isArray(data) || data.length === 0) return null;
+      const admin = data[0];
+      // Plain-text password check (matches what's stored in the table)
+      if (admin.password === password.trim()) {
+        return { username: admin.username, role: admin.role || 'admin' };
+      }
+      return null;
+    } catch (err) {
+      clearTimeout(timeout);
+      console.warn('[Supabase REST] verifyAdmin warning, falling back to local:', err.message);
+      return null;
+    }
   }
 };

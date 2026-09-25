@@ -493,22 +493,60 @@ FIB,Operating Systems,A binary semaphore initialized to 1 is commonly known as a
   // ========================================================
 
   function setupAdminAuth() {
-    adminLoginForm.addEventListener('submit', (e) => {
+    adminLoginForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       hideAlert(adminLoginAlert);
 
       const username = adminUsernameInput.value.trim();
       const password = adminPasswordInput.value.trim();
 
-      if (username === 'sabareesh_261' && password === 'sabareesh') {
-        state.isAdminLoggedIn = true;
-        sessionStorage.setItem('admin_logged_in', 'true');
-        showView(adminDashboardView);
-        btnNavAdmin.classList.add('active');
-        btnNavStudent.classList.remove('active');
-        refreshAdminData();
-      } else {
-        showCustomAlert(adminLoginAlert, 'Invalid Username or Password. Please try again.');
+      if (!username || !password) {
+        showCustomAlert(adminLoginAlert, 'Please enter both Username and Password.');
+        return;
+      }
+
+      // Show loading state
+      const btnAdminLogin = adminLoginForm.querySelector('button[type="submit"]');
+      const originalBtnText = btnAdminLogin ? btnAdminLogin.innerHTML : '';
+      if (btnAdminLogin) {
+        btnAdminLogin.disabled = true;
+        btnAdminLogin.innerHTML = '<span>Verifying...</span>';
+      }
+
+      try {
+        let isAuthenticated = false;
+
+        // 1. Try Supabase admins table first
+        if (typeof SupabaseAPI !== 'undefined' && SupabaseAPI.isConfigured()) {
+          const adminRecord = await SupabaseAPI.verifyAdmin(username, password);
+          if (adminRecord) {
+            isAuthenticated = true;
+          }
+        }
+
+        // 2. Fallback: hardcoded credentials (works offline too)
+        if (!isAuthenticated && username === 'sabareesh_261' && password === 'sabareesh') {
+          isAuthenticated = true;
+        }
+
+        if (isAuthenticated) {
+          state.isAdminLoggedIn = true;
+          sessionStorage.setItem('admin_logged_in', 'true');
+          showView(adminDashboardView);
+          btnNavAdmin.classList.add('active');
+          btnNavStudent.classList.remove('active');
+          refreshAdminData();
+        } else {
+          showCustomAlert(adminLoginAlert, 'Invalid Username or Password. Please try again.');
+        }
+      } catch (err) {
+        console.error('[Admin Auth Error]:', err);
+        showCustomAlert(adminLoginAlert, 'Login error. Please try again.');
+      } finally {
+        if (btnAdminLogin) {
+          btnAdminLogin.disabled = false;
+          btnAdminLogin.innerHTML = originalBtnText;
+        }
       }
     });
 
