@@ -1059,9 +1059,9 @@ body {
   border-radius: 4px;
 }
 
-.stat-dot.answered { background: var(--success); }
-.stat-dot.unanswered { background: #94a3b8; }
-.stat-dot.review { background: var(--purple); }
+.stat-dot.answered { background: #059669; }
+.stat-dot.unanswered { background: #1e293b; }
+.stat-dot.review { background: #7c3aed; }
 
 .palette-grid {
   display: grid;
@@ -1075,42 +1075,64 @@ body {
 .pal-btn {
   width: 100%;
   aspect-ratio: 1 / 1;
-  background: #f1f5f9;
-  border: 1.5px solid var(--border-color);
-  border-radius: 8px;
-  color: var(--text-secondary);
+  background: #1e293b;
+  border: 1.5px solid #334155;
+  border-radius: 9px;
+  color: #f8fafc;
   font-weight: 700;
-  font-size: 0.88rem;
+  font-size: 0.9rem;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.15s ease;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
 }
 
 .pal-btn:hover {
-  border-color: var(--border-light);
-  background: #e2e8f0;
-  transform: scale(1.04);
+  border-color: #64748b;
+  background: #334155;
+  color: #ffffff;
+  transform: scale(1.05);
 }
 
 .pal-btn.answered {
-  background: var(--success-bg);
-  color: var(--success-text);
-  border-color: var(--success-border);
+  background: #059669;
+  color: #ffffff;
+  border-color: #10b981;
+}
+
+.pal-btn.answered:hover {
+  background: #047857;
 }
 
 .pal-btn.review {
-  background: var(--purple-bg);
-  color: var(--purple-text);
-  border-color: var(--purple-border);
+  background: #7c3aed;
+  color: #ffffff;
+  border-color: #a855f7;
+}
+
+.pal-btn.review:hover {
+  background: #6d28d9;
 }
 
 .pal-btn.current {
-  box-shadow: 0 0 0 2px var(--primary);
-  border-color: var(--primary);
-  color: var(--primary);
-  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.45);
+  border-color: #3b82f6;
+  background: #1d4ed8;
+  color: #ffffff;
+}
+
+.pal-btn.answered.current {
+  background: #059669;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.5);
+  border-color: #38bdf8;
+}
+
+.pal-btn.review.current {
+  background: #7c3aed;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.5);
+  border-color: #38bdf8;
 }
 
 /* ========================================================
